@@ -40,6 +40,7 @@ def plot_value_counts(data: pd.core.series.Series, upper_bound: int = None, lowe
     rcParams.update({'figure.autolayout': True})  # makes labels not run off the bottom of the graphic
     value_counts.plot(kind='barh')
     matplotlib.pyplot.show()
+    return value_counts
 
 
 def find_occurrence(data, word: string):
@@ -49,6 +50,8 @@ def find_occurrence(data, word: string):
             if word in ingredient:
                 temp.add(ingredient)
     return temp
+
+
 
 
 # only load useful columns with df = pd.read_csv("filepath", usecols=list_useful_column_names)
