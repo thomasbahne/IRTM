@@ -23,7 +23,7 @@ def plot_value_counts(data: pd.core.series.Series, upper_bound: int = None, lowe
     # Sighting the data: retrieve counts of ingredients
     work_data = pd.core.series.Series
     if isinstance(data[0], list):
-        work_data = data['ingredients'].explode()
+        work_data = data.explode()
     value_counts = work_data.value_counts(sort=True)
     rcParams.update({'figure.autolayout': True})  # makes labels not run off the bottom of the graphic
     if (upper_bound is None) & (lower_bound is None):
