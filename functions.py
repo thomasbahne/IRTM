@@ -1,4 +1,3 @@
-import pandas as pd
 import matplotlib.pyplot
 
 # makes labels not run off the bottom of the graphic
@@ -19,9 +18,9 @@ filename_ingredients = 'RAW_ingredients.csv'
 filename_ingredients_one_list = 'ingredients_one_list.csv'
 
 
-def plot_value_counts(data: pd.core.series.Series, upper_bound: int = None, lower_bound: int = None):
+def plot_value_counts(data, upper_bound: int = None, lower_bound: int = None):
     # Sighting the data: retrieve counts of ingredients
-    work_data: pd.core.series.Series
+    work_data = None
     if isinstance(data[0], list):
         work_data = data.explode()
     value_counts = work_data.value_counts(sort=True)
