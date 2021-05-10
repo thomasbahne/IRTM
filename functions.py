@@ -65,7 +65,7 @@ def tokenize(phrase: str):
     return tokens
 
 
-def remove_measure_units_single_recipe(ingredients: list, reference_units: pd.DataFrame):
+def remove_measure_units_single_recipe(ingredients: list, reference_units: pd.core.series.Series):
     # removes all "measure units" and some other unnecessary descriptions specified in the reference list from
     # a single list of ingredients/recipe
     # reference list in stored in a .csv file (one row of strings)
@@ -76,7 +76,7 @@ def remove_measure_units_single_recipe(ingredients: list, reference_units: pd.Da
     return cleaned_ingredients
 
 
-def remove_measure_units(path_reference_units: str, data: pd.DataFrame):
+def remove_measure_units(path_reference_units: str, data: pd.core.series.Series):
     # removes all "measure units" and some other unnecessary descriptions specified in the reference list from
     # a list of recipes (each having a list of ingredients)
     # reference list in stored in a .csv file (one row of strings)
