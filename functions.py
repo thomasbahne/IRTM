@@ -1,11 +1,9 @@
 import matplotlib.pyplot
 import pandas as pd
 import requests
-
-# makes labels not run off the bottom of the graphic
-from matplotlib import rcParams
-
 import string
+from matplotlib import rcParams  # makes labels not run off the bottom of the graphic
+
 
 # cleaning up the data:
 # for the purpose of my analysis (finding out if a recipe is vegan/vegetarian/omnivore, I can disregard many
@@ -59,15 +57,15 @@ def find_occurrence(data, word: string):
 
 def tokenize(phrase: str):
     # tokenizes ingredients:
-    # removes (,), (*) and round brackets, replaces (&) with (and), strips trailing commas, deletes numbers
-    tokens = list(filter(lambda a: a != (',' or '*' or '(' or ')'), phrase.lower().split()))
-    tokens = ['and' if token=='&' else token for token in tokens]
+    # removes (,) and round brackets, replaces (&) with (and), strips trailing commas and deletes numbers
+    tokens = list(filter(lambda a: a != (',' or '(' or ')'), phrase.lower().split()))
+    tokens = ['and' if token == '&' else token for token in tokens]
     tokens = [token.rstrip(',') for token in tokens]
     tokens = [token for token in tokens if not token.isdigit()]
     return tokens
 
 
-def remove_measure_units_single_recipe(ingredients: list, reference_units: pd.series.Series):
+def remove_measure_units_single_recipe(ingredients: list, reference_units: pd.DataFrame):
     # removes all "measure units" and some other unnecessary descriptions specified in the reference list from
     # a single list of ingredients/recipe
     # reference list in stored in a .csv file (one row of strings)
@@ -78,7 +76,7 @@ def remove_measure_units_single_recipe(ingredients: list, reference_units: pd.se
     return cleaned_ingredients
 
 
-def remove_measure_units(path_reference_units: str, data: pd.dataFrame.DataFrame):
+def remove_measure_units(path_reference_units: str, data: pd.DataFrame):
     # removes all "measure units" and some other unnecessary descriptions specified in the reference list from
     # a list of recipes (each having a list of ingredients)
     # reference list in stored in a .csv file (one row of strings)
@@ -129,11 +127,12 @@ def get_food_category(food: str, categorized_foods: dict):
     # return food category
 
 
-def add_categorized_food(food:str, category: str, categorized_foods: dict):
+def add_categorized_food(food: str, category: str, categorized_foods: dict):
     if food not in categorized_foods:
         categorized_foods[food] = category
     else:
         print(food, ' already exists in dictionary.')
+
 
 # only load useful columns with df = pd.read_csv("filepath", usecols=list_useful_column_names)
 # specify data types to take less memory (e.g. for year-numbers use int.16 instead of int.64)
