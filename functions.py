@@ -72,7 +72,12 @@ def remove_measure_units_single_recipe(ingredients: list, reference_units: pd.co
     # reference list in stored in a .csv file (one row of strings)
     cleaned_ingredients = list(map(tokenize, ingredients))
     print('tokenizing works')
+    print(cleaned_ingredients)
+    print(type(cleaned_ingredients))
+    print(cleaned_ingredients[0])
+    print(type(cleaned_ingredients[0]))
     for token in cleaned_ingredients:
+        print('selecting token works')
         if token in reference_units.to_numpy().tolist():
             cleaned_ingredients.remove(token)
     cleaned_ingredients = list(map(' '.join, cleaned_ingredients))
