@@ -59,13 +59,16 @@ def find_occurrence(data, word: string):
 def tokenize(phrase: str):
     # tokenizes ingredients:
     # removes (,) and round brackets, replaces (&) with (and), strips trailing commas and deletes numbers
-    tokens = [word.lower() for word in phrase.split()]
-    tokens = list(filter(lambda a: a != (',' or '(' or ')'), tokens))
-    print('removing commas and brackets works')
-    tokens = ['and' if token == '&' else token for token in tokens]
-    tokens = [token.rstrip(',') for token in tokens]
-    tokens = [token for token in tokens if not token.isdigit()]
-    return tokens
+    if type(phrase) != 'str':
+        raise Exception(print(phrase, '\n Phrase is of type ', type(phrase)))
+    else:
+        tokens = [word.lower() for word in phrase.split()]
+        tokens = list(filter(lambda a: a != (',' or '(' or ')'), tokens))
+        print('removing commas and brackets works')
+        tokens = ['and' if token == '&' else token for token in tokens]
+        tokens = [token.rstrip(',') for token in tokens]
+        tokens = [token for token in tokens if not token.isdigit()]
+        return tokens
 
 
 def remove_measure_units_single_recipe(ingredients: list, reference_units: pd.core.series.Series):
