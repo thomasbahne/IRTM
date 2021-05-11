@@ -59,7 +59,8 @@ def find_occurrence(data, word: string):
 def tokenize(phrase: str):
     # tokenizes ingredients:
     # removes (,) and round brackets, replaces (&) with (and), strips trailing commas and deletes numbers
-    tokens = list(filter(lambda a: a != (',' or '(' or ')'), phrase.lower().split()))
+    phrase_lower = phrase.lower()
+    tokens = list(filter(lambda a: a != (',' or '(' or ')'), phrase_lower.split()))
     print('removing commas and brackets works')
     tokens = ['and' if token == '&' else token for token in tokens]
     tokens = [token.rstrip(',') for token in tokens]
@@ -93,7 +94,7 @@ def remove_measure_units(path_reference_units: str, data: pd.core.series.Series)
     # reference list in stored in a .csv file (one row of strings)
     reference_units = pd.read_csv(path_reference_units, squeeze=True)
     print(type(reference_units))
-    return pd.DataFrame(data).apply(remove_measure_units_single_recipe, args=(reference_units,))
+    return data.apply(remove_measure_units_single_recipe, reference_units=reference_units)
 
 
 def jaccard_coefficient(strings1: list, strings2: list):
