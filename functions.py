@@ -73,7 +73,7 @@ def remove_measure_units_single_recipe(ingredients: list, reference_units: pd.co
     cleaned_ingredients = list(map(tokenize, ingredients))
     print('tokenizing works')
     for token in cleaned_ingredients:
-        if token in reference_units.values:
+        if token in reference_units.to_numpy().tolist():
             cleaned_ingredients.remove(token)
     return cleaned_ingredients
 
