@@ -59,7 +59,7 @@ def find_occurrence(data, word: string):
 def tokenize(phrase: str):
     # tokenizes ingredients:
     # removes (,) and round brackets, replaces (&) with (and), strips trailing commas and deletes numbers
-    if type(phrase) != 'str':
+    if type(phrase) != str:
         raise Exception(print(phrase, '\n Phrase is of type ', type(phrase)))
     else:
         #tokens = [word.lower() for word in phrase.split()]
