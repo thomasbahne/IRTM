@@ -75,6 +75,7 @@ def remove_measure_units_single_recipe(ingredients: list, reference_units: pd.co
     for token in cleaned_ingredients:
         if token in reference_units.to_numpy().tolist():
             cleaned_ingredients.remove(token)
+    cleaned_ingredients = list(map(' '.join, cleaned_ingredients))
     return cleaned_ingredients
 
 
