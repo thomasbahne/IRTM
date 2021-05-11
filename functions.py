@@ -3,6 +3,7 @@ import pandas as pd
 import requests
 import string
 from matplotlib import rcParams  # makes labels not run off the bottom of the graphic
+from operator import itemgetter
 
 
 # cleaning up the data:
@@ -76,10 +77,12 @@ def remove_measure_units_single_recipe(ingredients: list, reference_units: pd.co
     print(type(cleaned_ingredients))
     print(cleaned_ingredients[0])
     print(type(cleaned_ingredients[0]))
-    for token in cleaned_ingredients:
-        print('selecting token works')
-        if token in reference_units.to_numpy().tolist():
-            cleaned_ingredients.remove(token)
+    for tokens in cleaned_ingredients:
+        print('selecting tokens works')
+        for token in tokens:
+            print('selecting token works')
+            if token in reference_units.to_numpy().tolist():
+                tokens.remove(token)
     cleaned_ingredients = list(map(' '.join, cleaned_ingredients))
     return cleaned_ingredients
 
