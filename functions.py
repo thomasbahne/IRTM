@@ -62,12 +62,12 @@ def tokenize(phrase: str):
     if type(phrase) != str:
         print('input is not if type string, but type ', type(phrase))
         print(phrase)
-    tokens = list(filter(lambda a: a != (',' or '(' or ')'), phrase.lower().split()))
-    print('removing commas and brackets works')
-    tokens = ['and' if token == '&' else token for token in tokens]
-    tokens = [token.rstrip(',') for token in tokens]
-    tokens = [token for token in tokens if not token.isdigit()]
-    return tokens
+    #tokens = list(filter(lambda a: a != (',' or '(' or ')'), phrase.lower().split()))
+    #print('removing commas and brackets works')
+    #tokens = ['and' if token == '&' else token for token in tokens]
+    #tokens = [token.rstrip(',') for token in tokens]
+    #tokens = [token for token in tokens if not token.isdigit()]
+    #return tokens
 
 
 def remove_measure_units_single_recipe(ingredients: list, reference_units: pd.core.series.Series):
