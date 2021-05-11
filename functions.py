@@ -59,8 +59,7 @@ def find_occurrence(data, word: string):
 def tokenize(phrase: str):
     # tokenizes ingredients:
     # removes (,) and round brackets, replaces (&) with (and), strips trailing commas and deletes numbers
-    phrase_lower = phrase.lower()
-    tokens = list(filter(lambda a: a != (',' or '(' or ')'), phrase_lower.split()))
+    tokens = list(filter(lambda a: a != (',' or '(' or ')'), phrase.lower().split()))
     print('removing commas and brackets works')
     tokens = ['and' if token == '&' else token for token in tokens]
     tokens = [token.rstrip(',') for token in tokens]
