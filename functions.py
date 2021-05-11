@@ -62,7 +62,7 @@ def tokenize(phrase: str):
     if type(phrase) != 'str':
         raise Exception(print(phrase, '\n Phrase is of type ', type(phrase)))
     else:
-        tokens = [word.lower() for word in phrase.split()]
+        #tokens = [word.lower() for word in phrase.split()]
         tokens = list(filter(lambda a: a != (',' or '(' or ')'), tokens))
         print('removing commas and brackets works')
         tokens = ['and' if token == '&' else token for token in tokens]
