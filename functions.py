@@ -59,6 +59,7 @@ def tokenize(phrase: str):
     # tokenizes ingredients:
     # removes (,) and round brackets, replaces (&) with (and), strips trailing commas and deletes numbers
     tokens = list(filter(lambda a: a != (',' or '(' or ')'), phrase.lower().split()))
+    print('removing commas and brackets works')
     tokens = ['and' if token == '&' else token for token in tokens]
     tokens = [token.rstrip(',') for token in tokens]
     tokens = [token for token in tokens if not token.isdigit()]
@@ -70,8 +71,9 @@ def remove_measure_units_single_recipe(ingredients: list, reference_units: pd.co
     # a single list of ingredients/recipe
     # reference list in stored in a .csv file (one row of strings)
     cleaned_ingredients = list(map(tokenize, ingredients))
+    print('tokenizing works')
     for token in cleaned_ingredients:
-        if token in reference_units:
+        if token in reference_units.values:
             cleaned_ingredients.remove(token)
     return cleaned_ingredients
 
@@ -81,7 +83,7 @@ def remove_measure_units(path_reference_units: str, data: pd.core.series.Series)
     # a list of recipes (each having a list of ingredients)
     # reference list in stored in a .csv file (one row of strings)
     reference_units = pd.read_csv(path_reference_units, squeeze=True)
-    return data.apply(remove_measure_units_single_recipe, reference_units=reference_units)
+    return data.apply(remove_measure_units_single_recipe, args=tuple(reference_units))
 
 
 def jaccard_coefficient(strings1: list, strings2: list):
