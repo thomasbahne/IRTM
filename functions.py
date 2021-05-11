@@ -93,7 +93,8 @@ def remove_measure_units(path_reference_units: str, data: pd.core.series.Series)
     # reference list in stored in a .csv file (one row of strings)
     reference_units = pd.read_csv(path_reference_units, squeeze=True)
     print(type(reference_units))
-    return data.apply(remove_measure_units_single_recipe, reference_units=reference_units)
+    data_without_units = [remove_measure_units_single_recipe(ingredients=ingr, reference_units=reference_units) for ingr in data]
+    return data_without_units
 
 
 def jaccard_coefficient(strings1: list, strings2: list):
