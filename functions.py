@@ -3,7 +3,7 @@ import pandas as pd
 import requests
 import string
 from matplotlib import rcParams  # makes labels not run off the bottom of the graphic
-from operator import itemgetter
+import itertools
 
 
 # cleaning up the data:
@@ -59,34 +59,30 @@ def find_occurrence(data, word: string):
 def tokenize(phrase: str):
     # tokenizes ingredients:
     # removes (,) and round brackets, replaces (&) with (and), strips trailing commas and deletes numbers
-    if type(phrase) != str:
-        raise Exception(print(phrase, '\n Phrase is of type ', type(phrase)))
-    else:
-        #tokens = [word.lower() for word in phrase.split()]
-        tokens = list(filter(lambda a: a != (',' or '(' or ')'), tokens))
-        print('removing commas and brackets works')
-        tokens = ['and' if token == '&' else token for token in tokens]
-        tokens = [token.rstrip(',') for token in tokens]
-        tokens = [token for token in tokens if not token.isdigit()]
-        return tokens
+    # splits ingredients that include the word "with" into two ingredients and eliminates "with"
+    tokens = list(filter(lambda a: a != (',' or '(' or ')'), phrase.lower().split()))
+    tokens = ['and' if token == '&' else token for token in tokens]
+    tokens = [token.rstrip(',') for token in tokens]
+    tokens = [token for token in tokens if not token.isdigit()]
+    if 'with' in tokens:
+        after_with_tokens = tokens[tokens.index('with') + 1:]
+        tokens = [t for t in tokens if t not in [*after_with_tokens, 'with']]
+        if 'and' in after_with_tokens:
+            after_with_after_and_tokens = after_with_tokens[after_with_tokens.index('and') + 1:]
+            after_with_tokens = [t for t in after_with_tokens if t not in [*after_with_after_and_tokens, 'and']]
+            return [*tokens, *after_with_tokens, *after_with_after_and_tokens]
+        return [*tokens, *after_with_tokens]
+    return tokens
 
 
 def remove_measure_units_single_recipe(ingredients: list, reference_units: pd.core.series.Series):
     # removes all "measure units" and some other unnecessary descriptions specified in the reference list from
     # a single list of ingredients/recipe
     # reference list in stored in a .csv file (one row of strings)
-    print(ingredients)
-    print(type(ingredients))
     cleaned_ingredients = list(map(tokenize, ingredients))
-    print('tokenizing works')
-    print(cleaned_ingredients)
-    print(type(cleaned_ingredients))
-    print(cleaned_ingredients[0])
-    print(type(cleaned_ingredients[0]))
     for tokens in cleaned_ingredients:
-        print('selecting tokens works')
+        tokens = [ingredient for token in tokens for ingredient in token]
         for token in tokens:
-            print('selecting token works')
             if token in reference_units.to_numpy().tolist():
                 tokens.remove(token)
     cleaned_ingredients = list(map(' '.join, cleaned_ingredients))
