@@ -4,6 +4,8 @@ import requests
 import string
 from matplotlib import rcParams  # makes labels not run off the bottom of the graphic
 import time
+from ast import literal_eval
+import os.path
 
 # cleaning up the data:
 # for the purpose of my analysis (finding out if a recipe is vegan/vegetarian/omnivore, I can disregard many
@@ -169,6 +171,7 @@ def tokenize_fdc(phrase: str) -> list:
 
 def predict_food_category(foods: list) -> str:
     # implement method that uses term similarity to determine best search result and take its food category
+    # if query matches 100% with result, take that result!!!
     # for food in foods:
     #     updated_description = list(map(tokenize_fdc, tokenize_fdc(food.get('lowercaseDescription'))))
     #     food.update({'lowercaseDescription': updated_description})
@@ -232,18 +235,49 @@ def categorize_foods(foods: list, categorized_foods: dict = None, queue_request_
     return categories
 
 
-def categorize_recipes(preprocessed_ingredients: pd.core.series.Series, categorized_foods=None) \
-        -> pd.core.series.Series:
+def categorize_recipes(preprocessed_ingredients: pd.core.series.Series, categorized_foods: dict = None,
+                       queue_request_times: list = None) -> pd.core.series.Series:
     if categorized_foods is None:
         categorized_foods: dict = {}
+    if queue_request_times is None:
+        queue_request_times = []
     recipe_categories: list = []
-    queue_request_times: list = []
 
     for ingredients in preprocessed_ingredients:
         recipe_categories.append(categorize_foods(foods=ingredients, categorized_foods=categorized_foods,
-                                                queue_request_times=queue_request_times))
+                                                  queue_request_times=queue_request_times))
 
     return pd.Series(recipe_categories)
+
+
+def batch_categorize_and_save(temp_category_save_path: str, batch_size: int, data_path: str,
+                              reference_units_path: str, categorized_foods_path: str = '', num_batches: int = 1,
+                              skip_batches: int = 0):
+    if os.path.isfile(categorized_foods_path):
+        temp = pd.read_csv(categorized_foods_path, index_col=0)
+        categorized_foods = temp.to_dict("split")
+        categorized_foods = dict(zip(categorized_foods["index"], categorized_foods["data"]))
+    else:
+        categorized_foods: dict = {}
+
+    queue_request_times: list = []
+
+    for batch_num in range(num_batches):
+        data = pd.read_csv(data_path, header=0, usecols=['ingredients'], nrows=batch_size,
+                           skiprows=range(1, 1 + (batch_size * batch_num) + skip_batches))
+        data['ingredients'] = data['ingredients'].apply(literal_eval)
+        data['pp_ingredients'] = remove_measure_units(path_reference_units=reference_units_path,
+                                                      data=data['ingredients'])
+        data['categories'] = categorize_recipes(data['pp_ingredients'], categorized_foods, queue_request_times)
+        temp2 = pd.DataFrame.from_dict(categorized_foods, orient="index")
+        temp2.to_csv(categorized_foods_path)
+        print(f'Batch {batch_num + 1}/{num_batches} processed and saved.')
+        if os.path.isfile(temp_category_save_path):
+            data['categories'].to_csv(temp_category_save_path, mode='a', header=False)
+        else:
+            data['categories'].to_csv(temp_category_save_path, mode='a', header=['categories'])
+        # work-in-progress: save categories of foods in the original data file as a new column
+    pass
 
 # only load useful columns with df = pd.read_csv("filepath", usecols=list_useful_column_names)
 # specify data types to take less memory (e.g. for year-numbers use int.16 instead of int.64)

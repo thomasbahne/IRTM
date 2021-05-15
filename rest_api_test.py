@@ -6,7 +6,7 @@ import string
 import matplotlib
 from ast import literal_eval
 import time
-from functions import remove_measure_units, plot_value_counts, request_database, categorize_foods, categorize_recipes
+from functions import remove_measure_units, plot_value_counts, request_database, categorize_foods, categorize_recipes, batch_categorize_and_save
 
 api_key = 'SoQlD3ha3vNDGM9ReqhdRBEj2j2EcYWaoIJipX5F'
 food = 'jalapeno'
@@ -27,22 +27,17 @@ query = {
 #pprint.pprint(response.json())
 
 
-data = pd.read_csv('../IRTM Assignment/data/RAW_recipes.csv', header=0, usecols=['submitted', 'tags', 'steps', 'ingredients'], parse_dates=['submitted'], infer_datetime_format=True, nrows=10)
-data['ingredients'] = data['ingredients'].apply(literal_eval)
-data['steps'] = data['steps'].apply(literal_eval)
-data['tags'] = data['tags'].apply(literal_eval)
-data['instructions'] = data['steps'].apply('. '.join)
-data['instructions'] = data['instructions'].str.replace(' , ', ', ')
-data['pp_ingredients'] = remove_measure_units(path_reference_units='../../IRTM/recipe data/measure_units.csv', data=data['ingredients'])
-data['pp_ingredients'] = remove_measure_units(path_reference_units='../../IRTM/recipe data/measure_units.csv', data=data['pp_ingredients'])
-start = time.time()
-data['categories'] = categorize_recipes(data['pp_ingredients'])
-end = time.time()
-print(data['categories'][0])
-print(data['categories'][1])
-print(data['categories'])
-minutes = (end-start)/60
-seconds = (end-start) - 60*minutes
-print('that took', minutes, 'minutes and', seconds, 'seconds.')
-print('for all 230.000 recipes that would be roughly', (minutes*23000)/60, 'hours')
-#value_counts = plot_value_counts(data['pp_ingredients'], lower_bound=15)
+# data = pd.read_csv('../IRTM Assignment/data/RAW_recipes.csv', header=0, usecols=['submitted', 'tags', 'steps', 'ingredients'], parse_dates=['submitted'], infer_datetime_format=True, nrows=10)
+# data['ingredients'] = data['ingredients'].apply(literal_eval)
+# data['steps'] = data['steps'].apply(literal_eval)
+# data['tags'] = data['tags'].apply(literal_eval)
+# data['instructions'] = data['steps'].apply('. '.join)
+# data['instructions'] = data['instructions'].str.replace(' , ', ', ')
+# data['pp_ingredients'] = remove_measure_units(path_reference_units='../../IRTM/recipe data/measure_units.csv', data=data['ingredients'])
+# data['pp_ingredients'] = remove_measure_units(path_reference_units='../../IRTM/recipe data/measure_units.csv', data=data['pp_ingredients'])
+batch_categorize_and_save(temp_category_save_path='../../IRTM/recipe data/temp_category_save.csv', batch_size=10,
+                          skip_batches=1, data_path='../../IRTM/recipe data/RAW_recipes_copy.csv',
+                          reference_units_path='../../IRTM/recipe data/measure_units.csv', num_batches=10,
+                          categorized_foods_path='../../IRTM/recipe data/categorized_foods.csv')
+# data['categories'] = categorize_recipes(data['pp_ingredients'])
+# value_counts = plot_value_counts(data['pp_ingredients'], lower_bound=15)
