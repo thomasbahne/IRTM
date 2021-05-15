@@ -41,8 +41,8 @@ end = time.time()
 print(data['categories'][0])
 print(data['categories'][1])
 print(data['categories'])
-minutes = (start-end)/60
-seconds = (start-end) - 60*minutes
+minutes = (end-start)/60
+seconds = (end-start) - 60*minutes
 print('that took', minutes, 'minutes and', seconds, 'seconds.')
 print('for all 230.000 recipes that would be roughly', (minutes*23000)/60, 'hours')
 #value_counts = plot_value_counts(data['pp_ingredients'], lower_bound=15)
