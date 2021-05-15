@@ -3,8 +3,7 @@ import pandas as pd
 import requests
 import string
 from matplotlib import rcParams  # makes labels not run off the bottom of the graphic
-import itertools
-
+import time
 
 # cleaning up the data:
 # for the purpose of my analysis (finding out if a recipe is vegan/vegetarian/omnivore, I can disregard many
@@ -12,6 +11,7 @@ import itertools
 
 # What I did to the data for the ingredients_one_list:
 # Took "ingredients" column and fused the individual entries to a huge list - ingredients_one_list.csv
+from typing import Tuple
 
 data_folder_path = 'Data/'
 filename_recipes = 'RAW_recipes.csv'
@@ -60,7 +60,7 @@ def tokenize(phrase: str):
     # tokenizes ingredients:
     # removes (,) and round brackets, replaces (&) with (and), strips trailing commas and deletes numbers
     # splits ingredients that include the word "with" into two ingredients and eliminates "with"
-    tokens = list(filter(lambda a: a != (',' or '(' or ')'), phrase.lower().split()))
+    tokens = phrase.lower().split()
     tokens = ['and' if token == '&' else token for token in tokens]
     tokens = [token.rstrip(',') for token in tokens]
     tokens = [token for token in tokens if not token.isdigit()]
@@ -81,7 +81,6 @@ def remove_measure_units_single_recipe(ingredients: list, reference_units: pd.co
     # reference list in stored in a .csv file (one row of strings)
     cleaned_ingredients = list(map(tokenize, ingredients))
     for tokens in cleaned_ingredients:
-        tokens = [ingredient for token in tokens for ingredient in token]
         for token in tokens:
             if token in reference_units.to_numpy().tolist():
                 tokens.remove(token)
@@ -94,8 +93,8 @@ def remove_measure_units(path_reference_units: str, data: pd.core.series.Series)
     # a list of recipes (each having a list of ingredients)
     # reference list in stored in a .csv file (one row of strings)
     reference_units = pd.read_csv(path_reference_units, squeeze=True)
-    print(type(reference_units))
-    data_without_units = [remove_measure_units_single_recipe(ingredients=ingr, reference_units=reference_units) for ingr in data]
+    data_without_units = [remove_measure_units_single_recipe(ingredients=ingredient, reference_units=reference_units)
+                          for ingredient in data]
     return data_without_units
 
 
@@ -116,38 +115,135 @@ def similarity(food1: str, food2: str):
     pass
 
 
-def request_database(food: str):
+def request_database(food: str) -> Tuple[list, int]:
     # method to request a certain food from the USDA food nutrition database
-    num_requests: int = 0
-    page_size: int = 1
+    # returns None if the query did not find any hits
+    first_nonempty_data_type: str = ''
+    relevance = ['Foundation', 'SR Legacy', 'Survey (FNDDS)', 'Branded']
     query = {
         'api_key': 'SoQlD3ha3vNDGM9ReqhdRBEj2j2EcYWaoIJipX5F',
-        'dataType': 'Foundation',
-        'foodTypes': 'Foundation',
+        'dataType': ['Foundation'],  # list of 'Foundation', 'SR Legacy', 'Survey (FNDDS)', 'Branded'
         'query': food,
-        'pageSize': page_size
+        'pageSize': 1,  # maximum number of results shown for the current page
+        'pageNumber': 1,  # determines offset of retrieved results: pageNumber*pageSize
+        # 'sortBy': ,                   # either dataType.keyword, description, fdcId, publishedDate
+        # 'sortOrder':                  # either asc or desc
+        # 'brandOwner':                 # only applies to foods of 'Branded' dataType
+        # 'requireAllWords':            # default is false
     }
-    # account for how many requests are made perhour (3600/hour max!)
-    # send a "dummy" query first to see if "Foundation" database has entries for that food
-    # if yes, take those. If no, search in "SR Legacy", then "Survey (FNDDS), then "Branded".
+
+    # send a "dummy" query to see which dataType has entries for that food
     response = requests.get("https://api.nal.usda.gov/fdc/v1/foods/search", params=query)
+    num_hits_by_data_type: dict = response.json().get('aggregations').get('dataType')
+
+    # take results of dataType which comes first in relevance and yields at least one results
+    for key in relevance:
+        if num_hits_by_data_type.get(key):
+            first_nonempty_data_type = key
+            break
+
+    if first_nonempty_data_type == '':
+        return [None], 0
+
+    # get up to five results from the most relevant dataType
+    page_size = max(num_hits_by_data_type.get(first_nonempty_data_type), 5)
+    query.update({'dataType': first_nonempty_data_type,
+                  'pageSize': page_size})
+    response = requests.get("https://api.nal.usda.gov/fdc/v1/foods/search", params=query)
+    foods = [{k: food[k] for k in food.keys() & {'dataType', 'lowercaseDescription', 'fdcId', 'foodCategory'}}
+             for food in response.json().get('foods')]
+
+    # keep track of how many requests were send to API, as there is a limit on 3600 queries per hour
+    num_requests_made = page_size + 1
+
+    return foods, num_requests_made
 
 
-def get_food_category(food: str, categorized_foods: dict):
+def tokenize_fdc(phrase: str) -> list:
+    tokens = phrase.lower().split(',')
+    tokens = [token.rstrip(' ') for token in tokens]
+    tokens = [token.lstrip(' ') for token in tokens]
+    tokens = [token for token in tokens if not token.isdigit()]
+    return tokens
+
+
+def predict_food_category(foods: list) -> str:
+    # implement method that uses term similarity to determine best search result and take its food category
+    # for food in foods:
+    #     updated_description = list(map(tokenize_fdc, tokenize_fdc(food.get('lowercaseDescription'))))
+    #     food.update({'lowercaseDescription': updated_description})
+    counters = {}
+    for food in foods:
+        counters[food.get('foodCategory')] = counters.get(food.get('foodCategory'), 0) + 1
+
+    # when two categories have the same count, the category first added to counters is returned
+    return max(counters, key=counters.get)
+
+
+def get_food_category(food: str, categorized_foods: dict) -> Tuple[str, int]:
     if food in categorized_foods:
-        return dict[food]
+        return categorized_foods.get(food), 0
     else:
-        # request database and determine food_category
-        pass
-    # return food category
+        hits, num_requests = request_database(food)
+        if hits[0] is None:
+            return 'Unidentified', num_requests
+
+        categorized_foods.update({food: predict_food_category(hits)})
+        return predict_food_category(hits), num_requests
 
 
-def add_categorized_food(food: str, category: str, categorized_foods: dict):
-    if food not in categorized_foods:
-        categorized_foods[food] = category
+def categorize_foods(foods: list, categorized_foods: dict = None, queue_request_times: list = None) -> list:
+    if categorized_foods is None:
+        categorized_foods: dict = {}
+
+    if queue_request_times is None:
+        queue_request_times = []
+        cumulated_requests: int = 0
     else:
-        print(food, ' already exists in dictionary.')
+        cumulated_requests = sum(request for request, timestamp in queue_request_times)
 
+    foods = iter(foods)
+    categories: list = []
+
+    while True:
+        while cumulated_requests > 0:
+            if queue_request_times[0][1] < time.time():
+                cumulated_requests -= queue_request_times[0][0]
+                del queue_request_times[0]
+            else:
+                break
+
+        if cumulated_requests > 3500:
+            print('Maximum number of requests per hour reached')
+            print('Program will continue in ', (queue_request_times[0][1] - time.time()) / 60, 'minutes.')
+            # implement that the method saves the progress it has made so far in a .csv file
+            time.sleep(queue_request_times[0][1] - time.time())
+
+        try:
+            food = next(foods)
+        except StopIteration:
+            break
+
+        category, num_requests = get_food_category(food, categorized_foods)
+        queue_request_times.append([num_requests, time.time()])
+        cumulated_requests += num_requests
+        categories.append(category)
+
+    return categories
+
+
+def categorize_recipes(preprocessed_ingredients: pd.core.series.Series, categorized_foods=None) \
+        -> pd.core.series.Series:
+    if categorized_foods is None:
+        categorized_foods: dict = {}
+    recipe_categories: list = []
+    queue_request_times: list = []
+
+    for ingredients in preprocessed_ingredients:
+        recipe_categories.append(categorize_foods(foods=ingredients, categorized_foods=categorized_foods,
+                                                queue_request_times=queue_request_times))
+
+    return pd.Series(recipe_categories)
 
 # only load useful columns with df = pd.read_csv("filepath", usecols=list_useful_column_names)
 # specify data types to take less memory (e.g. for year-numbers use int.16 instead of int.64)
