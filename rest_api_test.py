@@ -28,6 +28,7 @@ query = {
 
 
 # data = pd.read_csv('../IRTM Assignment/data/RAW_recipes.csv', header=0, usecols=['submitted', 'tags', 'steps', 'ingredients'], parse_dates=['submitted'], infer_datetime_format=True, nrows=10)
+# noise_terms = pd.read_csv(path_noise_term_file, squeeze=True).to_numpy().tolist()
 # data['ingredients'] = data['ingredients'].apply(literal_eval)
 # data['steps'] = data['steps'].apply(literal_eval)
 # data['tags'] = data['tags'].apply(literal_eval)
@@ -35,9 +36,11 @@ query = {
 # data['instructions'] = data['instructions'].str.replace(' , ', ', ')
 # data['pp_ingredients'] = remove_measure_units(path_reference_units='../../IRTM/recipe data/measure_units.csv', data=data['ingredients'])
 # data['pp_ingredients'] = remove_measure_units(path_reference_units='../../IRTM/recipe data/measure_units.csv', data=data['pp_ingredients'])
-batch_categorize_and_save(temp_category_save_path='../../IRTM/recipe data/temp_category_save.csv', batch_size=10,
+# batch_categorize_and_save(temp_category_save_path='../../IRTM/recipe data/temp_category_save.csv', batch_size=10,
                           skip_batches=1, data_path='../../IRTM/recipe data/RAW_recipes_copy.csv',
                           reference_units_path='../../IRTM/recipe data/measure_units.csv', num_batches=10,
                           categorized_foods_path='../../IRTM/recipe data/categorized_foods.csv')
 # data['categories'] = categorize_recipes(data['pp_ingredients'])
 # value_counts = plot_value_counts(data['pp_ingredients'], lower_bound=15)
+
+

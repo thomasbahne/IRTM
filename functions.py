@@ -1,4 +1,6 @@
+import Levenshtein as Levenshtein
 import matplotlib.pyplot
+import numpy as np
 import pandas as pd
 import requests
 import string
@@ -6,6 +8,7 @@ from matplotlib import rcParams  # makes labels not run off the bottom of the gr
 import time
 from ast import literal_eval
 import os.path
+import Levenshtein
 
 # cleaning up the data:
 # for the purpose of my analysis (finding out if a recipe is vegan/vegetarian/omnivore, I can disregard many
@@ -58,9 +61,8 @@ def find_occurrence(data, word: string):
     return temp
 
 
-def tokenize(phrase: str):
-    # tokenizes ingredients:
-    # removes (,) and round brackets, replaces (&) with (and), strips trailing commas and deletes numbers
+def tokenize(phrase: str) -> list:
+    # tokenizes ingredients: replaces (&) with (and), strips trailing commas, deletes numbers
     # splits ingredients that include the word "with" into two ingredients and eliminates "with"
     tokens = phrase.lower().split()
     tokens = ['and' if token == '&' else token for token in tokens]
@@ -77,44 +79,70 @@ def tokenize(phrase: str):
     return tokens
 
 
-def remove_measure_units_single_recipe(ingredients: list, reference_units: pd.core.series.Series):
-    # removes all "measure units" and some other unnecessary descriptions specified in the reference list from
-    # a single list of ingredients/recipe
-    # reference list in stored in a .csv file (one row of strings)
-    cleaned_ingredients = list(map(tokenize, ingredients))
-    for tokens in cleaned_ingredients:
-        for token in tokens:
-            if token in reference_units.to_numpy().tolist():
-                tokens.remove(token)
-    cleaned_ingredients = list(map(' '.join, cleaned_ingredients))
-    return cleaned_ingredients
+def tokenize_fdc(phrase: str) -> list:
+    # Food descriptions in FoodData Central database (FDC) have a different structure than foods in the recipe
+    # collection. Therefore, they need a slightly different tokenizer
+    tokens = phrase.lower().split(',')
+    tokens = [token.rstrip(' ') for token in tokens]
+    tokens = [token.lstrip(' ') for token in tokens]
+    tokens = [token for token in tokens if not token.isdigit()]
+    # to-do: remove 'measure unit' tokens
+    return tokens
 
 
-def remove_measure_units(path_reference_units: str, data: pd.core.series.Series):
-    # removes all "measure units" and some other unnecessary descriptions specified in the reference list from
-    # a list of recipes (each having a list of ingredients)
-    # reference list in stored in a .csv file (one row of strings)
-    reference_units = pd.read_csv(path_reference_units, squeeze=True)
-    data_without_units = [remove_measure_units_single_recipe(ingredients=ingredient, reference_units=reference_units)
-                          for ingredient in data]
-    return data_without_units
+def remove_measure_units_single_ingredient(ingredient: str, noise_terms: list):
+    # removes terms that are not necessary to determine if ingredient is vegan/vegetarian (noise terms)
+    # Example of noise terms: 'fresh', 'canned', 'frozen', 'tablespoon', 'sugar-free')
+    # noise terms are specified in external .csv file
+    tokens: list = tokenize(ingredient)
+    tokens = [token for token in tokens if token not in set(noise_terms)]
+    return list(map(' '.join, tokens))
 
 
-def jaccard_coefficient(strings1: list, strings2: list):
-    s1 = set(strings1)
-    s2 = set(strings2)
-    return float(len(s1.intersection(s2)) / len(s1.union(s2)))
+def remove_measure_units_multiple_ingredients(ingredients: list, noise_terms: list):
+    # for explanation, see function 'remove_measure_units_single_ingredient'
+    return [remove_measure_units_single_ingredient(ingredient=ingredient, noise_terms=noise_terms) for ingredient in
+            ingredients]
 
 
-def similarity(food1: str, food2: str):
-    # "tokenization" - takes lowercase strings and splits them into words
-    food1_tokens = list(filter(lambda a: a != ',', food1.lower().split()))
-    food2_tokens = list(filter(lambda a: a != ',', food2.lower().split()))
-    # implement method to compare similarity of food in recipe vs. food gotten by  REST API
-    # tags given as input should not have commas
-    # Jaccard-Coefficient: proportion of identical tokens
-    # Levensthein-Distance: number of coefficients to transform one sting into another
-    pass
+def remove_measure_units(noise_terms: list, data: pd.core.series.Series):
+    # for explanation, see function 'remove_measure_units_single_ingredient'
+    return [remove_measure_units_multiple_ingredients(ingredients=recipe, noise_terms=noise_terms) for recipe in data]
+
+
+def jaccard_coefficient(tokens1: set, tokens2: set) -> float:
+    # proportion of identical tokens
+    return float(len(tokens1.intersection(tokens2)) / len(tokens1.union(tokens2)))
+
+
+def similarity(food_recipe: str, food_fdc: str) -> float:
+    # custom measure for similarity of two phrases (between 0 and 1)
+    # uses jaccard-coefficient as well as Levensthein distance
+    # How it works:
+    # 1) take all tokens in ingredient from recipe
+    # 2) assign value 1 to tokens that also appear in the search result from the database
+    # 3) for remaining tokens, find most similar token (by Levensthein-Distance) in the set of tokens from the database
+    # 4) assign value exp(-0.2*Levensthein-Distance) to those tokens (factor of 0.2 chosen arbitrarily)
+    # 5) take average of values of all tokens in ingrdient from recipe and multiply by jaccard-coefficient
+    recipe_tokens: list = tokenize(food_recipe)
+    fdc_tokens: list = tokenize_fdc(food_fdc)
+    s1: set = set(recipe_tokens)
+    s2: set = set(fdc_tokens)
+    jacc_coefficient: float = jaccard_coefficient(s1, s2)
+    unique_s1: set = s1.difference(s2)
+    unique_s2: set = s2.difference(s1)
+    if (jacc_coefficient == 1) or (len(unique_s1) == 0) or (len(unique_s2) == 0):
+        return 1
+
+    # Levensthein-Distance: number of operations to transform one string into another
+    max_similarities = [min([Levenshtein.distance(token1, token2) for token2 in unique_s2]) for token1 in unique_s1]
+    # to-do (optional): remove tokens from unique_s2 that are already used
+    print('Recipe Tokens:', s1)
+    print('FDC Tokens:', s2)
+    print('Jaccard Coefficient:', jacc_coefficient)
+    print('Max. similarities:', max_similarities)
+    max_similarities = np.exp(-0.2*max_similarities)
+    return jacc_coefficient*((len(s1.union(s2))+sum(max_similarities))/len(s1))
 
 
 def request_database(food: str) -> Tuple[list, int]:
@@ -161,20 +189,13 @@ def request_database(food: str) -> Tuple[list, int]:
     return foods, num_requests_made
 
 
-def tokenize_fdc(phrase: str) -> list:
-    tokens = phrase.lower().split(',')
-    tokens = [token.rstrip(' ') for token in tokens]
-    tokens = [token.lstrip(' ') for token in tokens]
-    tokens = [token for token in tokens if not token.isdigit()]
-    return tokens
-
-
 def predict_food_category(foods: list) -> str:
     # implement method that uses term similarity to determine best search result and take its food category
     # if query matches 100% with result, take that result!!!
-    # for food in foods:
-    #     updated_description = list(map(tokenize_fdc, tokenize_fdc(food.get('lowercaseDescription'))))
-    #     food.update({'lowercaseDescription': updated_description})
+    for food in foods:
+        updated_description = list(map(tokenize_fdc, tokenize_fdc(food.get('lowercaseDescription'))))
+    #    updated_description = # to-do: remove measure units
+        food.update({'lowercaseDescription': updated_description})
     counters = {}
     for food in foods:
         counters[food.get('foodCategory')] = counters.get(food.get('foodCategory'), 0) + 1
