@@ -8,6 +8,7 @@ import time
 from ast import literal_eval
 import os.path
 import Levenshtein
+import pprint
 
 # cleaning up the data:
 # for the purpose of my analysis (finding out if a recipe is vegan/vegetarian/omnivore, I can disregard many
@@ -84,6 +85,8 @@ def tokenize_fdc(phrase: str) -> list:
     tokens = phrase.lower().split(',')
     tokens = [token.rstrip(' ') for token in tokens]
     tokens = [token.lstrip(' ') for token in tokens]
+    # tokens = [sub_token for token in tokens for sub_token in token.split()]
+    # this would split 'grade a' into 'grade' and 'a'
     tokens = [token for token in tokens if not token.isdigit()]
     return tokens
 
@@ -129,27 +132,30 @@ def similarity(food_recipe: str, food_fdc: str, noise_terms: list) -> float:
     # is strictly decreasing, while asymptotically reaching 0
     # 3) average the value of all tokens in ingredient
     # 4) multiply average with exp(-0.1*|num_tokens_recipe - num_tokens_FDC|) to 'punish' difference in number of tokens
-
     recipe_tokens: list = tokenize(food_recipe)
     fdc_tokens = remove_noise_terms_single_ingredient(ingredient=food_fdc, noise_terms=noise_terms,
                                                       use_fdc_tokenizer=True).split()
     s1: set = set(recipe_tokens)
     s2: set = set(fdc_tokens)
+    if len(s1) == 0:
+        print('from similarity: length 0 tokens:', food_recipe)
     unique_s1: set = s1.difference(s2)
     unique_s2: set = s2.difference(s1)
-    length_difference = abs(len(s1)-len(s2))
+    length_difference = abs(len(s1) - len(s2))
+    # if I don't check if sets are empty, min-function below will return ValueError
 
     # Levensthein-Distance: number of operations to transform one string into another
-    min_levensthein_distances = np.array([min([Levenshtein.distance(token1, token2) for token2 in unique_s2])
-                                          for token1 in unique_s1])
+    try:
+        min_levensthein_distances = np.array([min([Levenshtein.distance(token1, token2) for token2 in unique_s2])
+                                              for token1 in unique_s1])
+    except ValueError:
+        if (len(unique_s1) == 0) or (len(unique_s2) == 0):
+            return np.exp(-0.1 * length_difference)
+        else:
+            return ValueError('Unknown reason for error, please investigate...')
     # to-do (optional): remove tokens from unique_s2 that are already used
-    print('Recipe Tokens:', s1)
-    print('FDC Tokens:', s2)
-    print('Lev. distances:', min_levensthein_distances)
     min_levensthein_distances = np.exp(-0.2 * min_levensthein_distances)
-    print('Lev. distances:', min_levensthein_distances)
-    print('similarity:', np.exp(-0.1*length_difference) * ((len(s1.intersection(s2)) + sum(min_levensthein_distances)) / len(s1)))
-    return np.exp(-0.1*length_difference) * ((len(s1.intersection(s2)) + sum(min_levensthein_distances)) / len(s1))
+    return np.exp(-0.1 * length_difference) * ((len(s1.intersection(s2)) + sum(min_levensthein_distances)) / len(s1))
 
 
 def request_database(food: str) -> Tuple[list, int]:
@@ -171,7 +177,11 @@ def request_database(food: str) -> Tuple[list, int]:
 
     # send a "dummy" query to see which dataType has entries for that food
     response = requests.get("https://api.nal.usda.gov/fdc/v1/foods/search", params=query)
-    num_hits_by_data_type: dict = response.json().get('aggregations').get('dataType')
+    print(f'Remaining requests: {response.headers["X-RateLimit-Remaining"]}')
+    try:
+        num_hits_by_data_type: dict = response.json().get('aggregations').get('dataType')
+    except AttributeError:
+        return [None], 2
 
     # take results of dataType which comes first in relevance and yields at least one results
     for data_type in relevance:
@@ -191,9 +201,8 @@ def request_database(food: str) -> Tuple[list, int]:
              for food in response.json().get('foods')]
 
     # keep track of how many requests were send to API, as there is a limit on 3600 queries per hour
-    num_requests_made = page_size + 1
 
-    return foods, num_requests_made
+    return foods, 2
 
 
 def predict_food_category_of_request(food_recipe: str, fdc_foods: list, noise_terms: list) -> str:
@@ -207,9 +216,16 @@ def predict_food_category_of_request(food_recipe: str, fdc_foods: list, noise_te
     return max(counters, key=counters.get)
 
 
-def get_food_category(food: str, categorized_foods: dict, noise_terms: list) -> Tuple[str, int]:
+# def track_requests_threaded(queue_request_times: list):
+#     cumulated_requests = sum(request for request, timestamp in queue_request_times)
+#     while True:
+
+
+def categorize_single_ingredients(food: str, categorized_foods: dict, noise_terms: list) -> Tuple[str, int]:
     # searches in list of already categorized foods and returns category if found, otherwise send request to FDC
     # database and predicts category given the search results from the database
+    if food == '':
+        return 'Unidentified', 0
     if food in categorized_foods:
         return categorized_foods.get(food), 0
     else:
@@ -256,7 +272,7 @@ def categorize_multiple_ingredients(foods: list, noise_terms: list, categorized_
         except StopIteration:
             break
 
-        category, num_requests = get_food_category(food, categorized_foods, noise_terms=noise_terms)
+        category, num_requests = categorize_single_ingredients(food, categorized_foods, noise_terms=noise_terms)
         queue_request_times.append([num_requests, time.time()])
         cumulated_requests += num_requests
         categories.append(category)
@@ -280,13 +296,18 @@ def categorize_recipes(preprocessed_ingredients: pd.core.series.Series, noise_te
     return pd.Series(recipe_categories)
 
 
+def append_csv(data_frame: pd.core.frame.DataFrame, file_path: str, sep=","):
+    if not os.path.isfile(file_path):
+        data_frame.to_csv(file_path, mode='a', index=False, sep=sep)
+    else:
+        data_frame.to_csv(file_path, mode='a', index=False, sep=sep, header=False)
+
+
 def batch_categorize_and_save(temp_category_save_path: str, batch_size: int, data_path: str,
                               path_noise_term_file: str, categorized_foods_path: str = '', num_batches: int = 1,
                               skip_batches: int = 0):
     if os.path.isfile(categorized_foods_path):
-        temp = pd.read_csv(categorized_foods_path, index_col=0)
-        categorized_foods = temp.to_dict("split")
-        categorized_foods = dict(zip(categorized_foods["index"], categorized_foods["data"]))
+        categorized_foods = np.load(categorized_foods_path, allow_pickle='TRUE').item()
     else:
         categorized_foods: dict = {}
 
@@ -296,21 +317,20 @@ def batch_categorize_and_save(temp_category_save_path: str, batch_size: int, dat
 
     for batch_num in range(num_batches):
         data = pd.read_csv(data_path, header=0, usecols=['ingredients'], nrows=batch_size,
-                           skiprows=range(1, 1 + (batch_size * batch_num) + skip_batches))
+                           skiprows=range(1, 1 + (batch_size * batch_num) + skip_batches*batch_size))
         data['ingredients'] = data['ingredients'].apply(literal_eval)
         data['pp_ingredients'] = remove_noise_terms(noise_terms, data=data['ingredients'])
         data['categories'] = categorize_recipes(preprocessed_ingredients=data['pp_ingredients'],
                                                 noise_terms=noise_terms, categorized_foods=categorized_foods,
                                                 queue_request_times=queue_request_times)
-        temp2 = pd.DataFrame.from_dict(categorized_foods, orient="index")
-        temp2.to_csv(categorized_foods_path)
+        np.save(categorized_foods_path, categorized_foods)
         print(f'Batch {batch_num + 1}/{num_batches} processed and saved.')
-        if os.path.isfile(temp_category_save_path):
-            data['categories'].to_csv(temp_category_save_path, mode='a', header=False)
-        else:
-            data['categories'].to_csv(temp_category_save_path, mode='a', header=['categories'])
+        append_csv(data['categories'], temp_category_save_path)
+        # if os.path.isfile(temp_category_save_path):
+        #     data['categories'].to_csv(temp_category_save_path, mode='a', header=False, index=False)
+        # else:
+        #     data['categories'].to_csv(temp_category_save_path, mode='w', header=['categories'])
         # to-do: save categories of foods in the original data file as a new column
-    pass
 
 # only load useful columns with df = pd.read_csv("filepath", usecols=list_useful_column_names)
 # specify data types to take less memory (e.g. for year-numbers use int.16 instead of int.64)
