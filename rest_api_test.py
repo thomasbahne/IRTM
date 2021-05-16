@@ -42,9 +42,9 @@ query = {
 # data['pp_ingredients'] = remove_noise_terms(noise_terms=noise_terms, data=data['ingredients'])
 # data['pp_ingredients'] = remove_noise_terms(noise_terms=noise_terms, data=data['pp_ingredients'])
 # value_counts = plot_value_counts(data['pp_ingredients'], lower_bound=70)
-batch_categorize_and_save(temp_category_save_path='../../IRTM/recipe data/temp_category_save.csv', batch_size=100, skip_batches=58,
+batch_categorize_and_save(temp_category_save_path='../../IRTM/recipe data/temp_category_save.csv', batch_size=100, skip_batches=100,
                           data_path='../../IRTM/recipe data/RAW_recipes_copy.csv',
-                          path_noise_term_file='../../IRTM/recipe data/noise_terms.csv', num_batches=42,
+                          path_noise_term_file='../../IRTM/recipe data/noise_terms.csv', num_batches=2000,
                           categorized_foods_path='../../IRTM/recipe data/categorized_foods.npy')
 # data['categories'] = categorize_recipes(data['pp_ingredients'])
 

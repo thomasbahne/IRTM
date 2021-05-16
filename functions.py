@@ -152,13 +152,13 @@ def similarity(food_recipe: str, food_fdc: str, noise_terms: list) -> float:
         if (len(unique_s1) == 0) or (len(unique_s2) == 0):
             return np.exp(-0.1 * length_difference)
         else:
-            return ValueError('Unknown reason for error, please investigate...')
+            raise ValueError('Unknown reason for error, please investigate...')
     # to-do (optional): remove tokens from unique_s2 that are already used
     min_levensthein_distances = np.exp(-0.2 * min_levensthein_distances)
     return np.exp(-0.1 * length_difference) * ((len(s1.intersection(s2)) + sum(min_levensthein_distances)) / len(s1))
 
 
-def request_database(food: str) -> Tuple[list, int]:
+def request_database(food: str) -> list:
     # method to request a certain food from the USDA food nutrition database
     # returns None if the query did not find any hits
     first_nonempty_data_type: str = ''
@@ -178,10 +178,13 @@ def request_database(food: str) -> Tuple[list, int]:
     # send a "dummy" query to see which dataType has entries for that food
     response = requests.get("https://api.nal.usda.gov/fdc/v1/foods/search", params=query)
     print(f'Remaining requests: {response.headers["X-RateLimit-Remaining"]}')
+    while int(response.headers["X-RateLimit-Remaining"]) < 10:
+        print('Close to reaching rate limit, sleepigng for 60 seconds')
+        time.sleep(60)
     try:
         num_hits_by_data_type: dict = response.json().get('aggregations').get('dataType')
     except AttributeError:
-        return [None], 2
+        return [None]
 
     # take results of dataType which comes first in relevance and yields at least one results
     for data_type in relevance:
@@ -190,7 +193,7 @@ def request_database(food: str) -> Tuple[list, int]:
             break
 
     if first_nonempty_data_type == '':
-        return [None], 0
+        return [None]
 
     # get up to five results from the most relevant dataType
     page_size = min(num_hits_by_data_type.get(first_nonempty_data_type), 5)
@@ -202,7 +205,7 @@ def request_database(food: str) -> Tuple[list, int]:
 
     # keep track of how many requests were send to API, as there is a limit on 3600 queries per hour
 
-    return foods, 2
+    return foods
 
 
 def predict_food_category_of_request(food_recipe: str, fdc_foods: list, noise_terms: list) -> str:
@@ -216,82 +219,52 @@ def predict_food_category_of_request(food_recipe: str, fdc_foods: list, noise_te
     return max(counters, key=counters.get)
 
 
-# def track_requests_threaded(queue_request_times: list):
-#     cumulated_requests = sum(request for request, timestamp in queue_request_times)
-#     while True:
-
-
-def categorize_single_ingredients(food: str, categorized_foods: dict, noise_terms: list) -> Tuple[str, int]:
+def categorize_single_ingredients(food: str, categorized_foods: dict, noise_terms: list) -> str:
     # searches in list of already categorized foods and returns category if found, otherwise send request to FDC
     # database and predicts category given the search results from the database
     if food == '':
-        return 'Unidentified', 0
+        return 'Unidentified'
     if food in categorized_foods:
-        return categorized_foods.get(food), 0
+        return categorized_foods.get(food)
     else:
-        hits, num_requests = request_database(food)
+        hits = request_database(food)
         if hits[0] is None:
             categorized_foods.update({food: 'Unidentified'})
-            return 'Unidentified', num_requests
+            return 'Unidentified'
 
         predicted_category = predict_food_category_of_request(food_recipe=food, fdc_foods=hits, noise_terms=noise_terms)
         categorized_foods.update({food: predicted_category})
-        return predicted_category, num_requests
+        return predicted_category
 
 
-def categorize_multiple_ingredients(foods: list, noise_terms: list, categorized_foods: dict = None,
-                                    queue_request_times: list = None) -> list:
+def categorize_multiple_ingredients(foods: list, noise_terms: list, categorized_foods: dict = None) -> list:
     if categorized_foods is None:
         categorized_foods: dict = {}
-
-    if queue_request_times is None:
-        queue_request_times = []
-        cumulated_requests: int = 0
-    else:
-        cumulated_requests = sum(request for request, timestamp in queue_request_times)
 
     foods = iter(foods)
     categories: list = []
 
     while True:
-        while cumulated_requests > 0:
-            if queue_request_times[0][1] < time.time():
-                cumulated_requests -= queue_request_times[0][0]
-                del queue_request_times[0]
-            else:
-                break
-
-        if cumulated_requests > 3500:
-            print('Maximum number of requests per hour reached')
-            print('Program will continue in ', (queue_request_times[0][1] - time.time()) / 60, 'minutes.')
-            # implement that the method saves the progress it has made so far in a .csv file
-            time.sleep(queue_request_times[0][1] - time.time())
-
         try:
             food = next(foods)
         except StopIteration:
             break
 
-        category, num_requests = categorize_single_ingredients(food, categorized_foods, noise_terms=noise_terms)
-        queue_request_times.append([num_requests, time.time()])
-        cumulated_requests += num_requests
+        category = categorize_single_ingredients(food, categorized_foods, noise_terms=noise_terms)
         categories.append(category)
 
     return categories
 
 
 def categorize_recipes(preprocessed_ingredients: pd.core.series.Series, noise_terms: list,
-                       categorized_foods: dict = None, queue_request_times: list = None) -> pd.core.series.Series:
+                       categorized_foods: dict = None) -> pd.core.series.Series:
     if categorized_foods is None:
         categorized_foods: dict = {}
-    if queue_request_times is None:
-        queue_request_times = []
     recipe_categories: list = []
 
     for ingredients in preprocessed_ingredients:
         recipe_categories.append(categorize_multiple_ingredients(foods=ingredients, noise_terms=noise_terms,
-                                                                 categorized_foods=categorized_foods,
-                                                                 queue_request_times=queue_request_times))
+                                                                 categorized_foods=categorized_foods))
 
     return pd.Series(recipe_categories)
 
@@ -313,16 +286,13 @@ def batch_categorize_and_save(temp_category_save_path: str, batch_size: int, dat
 
     noise_terms = pd.read_csv(path_noise_term_file, squeeze=True).to_numpy().tolist()
 
-    queue_request_times: list = []
-
     for batch_num in range(num_batches):
         data = pd.read_csv(data_path, header=0, usecols=['ingredients'], nrows=batch_size,
                            skiprows=range(1, 1 + (batch_size * batch_num) + skip_batches*batch_size))
         data['ingredients'] = data['ingredients'].apply(literal_eval)
         data['pp_ingredients'] = remove_noise_terms(noise_terms, data=data['ingredients'])
         data['categories'] = categorize_recipes(preprocessed_ingredients=data['pp_ingredients'],
-                                                noise_terms=noise_terms, categorized_foods=categorized_foods,
-                                                queue_request_times=queue_request_times)
+                                                noise_terms=noise_terms, categorized_foods=categorized_foods)
         np.save(categorized_foods_path, categorized_foods)
         print(f'Batch {batch_num + 1}/{num_batches} processed and saved.')
         append_csv(data['categories'], temp_category_save_path)
