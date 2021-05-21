@@ -2,21 +2,16 @@ import matplotlib.pyplot
 import numpy as np
 import pandas as pd
 import requests
-import string
 from matplotlib import rcParams  # makes labels not run off the bottom of the graphic
 import time
 from ast import literal_eval
 import os.path
 import Levenshtein
-import pprint
+import csv
 
 # cleaning up the data:
 # for the purpose of my analysis (finding out if a recipe is vegan/vegetarian/omnivore, I can disregard many
 # descriptions of ingredients. Examples would be "fresh" or "mix", like in "fresh parsley", or "pudding mix".
-
-# What I did to the data for the ingredients_one_list:
-# Took "ingredients" column and fused the individual entries to a huge list - ingredients_one_list.csv
-from typing import Tuple
 
 data_folder_path = 'Data/'
 filename_recipes = 'RAW_recipes.csv'
@@ -51,7 +46,7 @@ def plot_value_counts(data, upper_bound: int = None, lower_bound: int = None):
     return value_counts
 
 
-def find_occurrence(data, word: string):
+def find_occurrence(data, word: str) -> set:
     # finds all elements (ingredients) containing word in data
     temp = set()
     for item in data:
@@ -269,7 +264,7 @@ def categorize_recipes(preprocessed_ingredients: pd.core.series.Series, noise_te
     return pd.Series(recipe_categories)
 
 
-def append_csv(data_frame: pd.core.frame.DataFrame, file_path: str, sep=","):
+def append_csv(data_frame: pd.core.frame.DataFrame, file_path: str, sep=",") -> None:
     if not os.path.isfile(file_path):
         data_frame.to_csv(file_path, mode='a', index=False, sep=sep)
     else:
@@ -278,7 +273,7 @@ def append_csv(data_frame: pd.core.frame.DataFrame, file_path: str, sep=","):
 
 def batch_categorize_and_save(temp_category_save_path: str, batch_size: int, data_path: str,
                               path_noise_term_file: str, categorized_foods_path: str = '', num_batches: int = 1,
-                              skip_batches: int = 0):
+                              skip_batches: int = 0) -> None:
     # function to categorize ingredients in batches, due to API constraints on maximum number of requests per hour
     if os.path.isfile(categorized_foods_path):
         categorized_foods = np.load(categorized_foods_path, allow_pickle='TRUE').item()
@@ -289,7 +284,7 @@ def batch_categorize_and_save(temp_category_save_path: str, batch_size: int, dat
 
     for batch_num in range(num_batches):
         data = pd.read_csv(data_path, header=0, usecols=['ingredients'], nrows=batch_size,
-                           skiprows=range(1, 1 + (batch_size * batch_num) + skip_batches*batch_size))
+                           skiprows=range(1, 1 + (batch_size * batch_num) + skip_batches * batch_size))
         data['ingredients'] = data['ingredients'].apply(literal_eval)
         data['pp_ingredients'] = remove_noise_terms(noise_terms, data=data['ingredients'])
         data['categories'] = categorize_recipes(preprocessed_ingredients=data['pp_ingredients'],
@@ -299,13 +294,13 @@ def batch_categorize_and_save(temp_category_save_path: str, batch_size: int, dat
         append_csv(data['categories'], temp_category_save_path)
 
 
-def add_classes(pp_ingredients: list, categorized_foods: dict):
+def add_classes(pp_ingredients: list, categorized_foods: dict) -> list:
     # for a recipe (= list of ingredients), return a list of categories for those ingredients
     return [categorized_foods[ingredient] if ingredient in categorized_foods else 'Missing' for ingredient in
             pp_ingredients]
 
 
-def is_vegetarian(categories: list):
+def is_vegetarian(categories: list) -> int:
     # identifies if a recipe (=list of ingredients) is vegetarian
     non_vegetarian = ['Beef Products', 'Fish and Seafood', 'Lamb, Veal, and Game Products', 'Poultry Products',
                       'Pork Products', 'Sausages and Luncheon Meats']
@@ -315,7 +310,7 @@ def is_vegetarian(categories: list):
     return 1
 
 
-def is_vegan(categories: list):
+def is_vegan(categories: list) -> int:
     # identifies if a recipe (=list of ingredients) is vegan
     non_vegan = ['Beef Products', 'Fish and Seafood', 'Lamb, Veal, and Game Products', 'Poultry Products',
                  'Pork Products', 'Sausages and Luncheon Meats', 'Dairy and Egg Products', 'Non vegan sweets',
@@ -326,12 +321,34 @@ def is_vegan(categories: list):
     return 1
 
 
-def tagged_vegetarian(tags: list):
+def tagged_vegetarian(tags: list) -> int:
     # identifies if a recipe was tagged as vegetarian by the user
     for tag in tags:
         if tag == 'vegetarian':
             return 1
     return 0
+
+
+def load_npy_dict(file_path: str = '../../IRTM/recipe data/categorized_foods.npy') -> dict:
+    # return a dictionary that was stored in a .npy file
+    return np.load(file_path, allow_pickle='TRUE').item()
+
+
+def write_npy_dict_to_csv(save_location: str = '../../IRTM/recipe data/categorized_foods.csv',
+                          npy_path: str = '../../IRTM/recipe data/categorized_foods.npy') -> None:
+    # converts and saves dict stored as .npy to .csv
+    npy_dict: dict = load_npy_dict(npy_path)
+    with open(save_location, 'w') as csv_file:
+        writer = csv.writer(csv_file)
+        for key, value in npy_dict.items():
+            writer.writerow([key, value])
+
+
+def read_dict_from_csv(csv_path: str = '../../IRTM/recipe data/categorized_foods.csv') -> dict:
+    # return dict that was saved in a .csv
+    with open(csv_path) as csv_file:
+        reader = csv.reader(csv_file)
+        return dict(reader)
 
 # only load useful columns with df = pd.read_csv("filepath", usecols=list_useful_column_names)
 # specify data types to take less memory (e.g. for year-numbers use int.16 instead of int.64)

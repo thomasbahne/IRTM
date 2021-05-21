@@ -45,34 +45,3 @@ value_counts = plot_value_counts(data['categories'])
 #                           path_noise_term_file='../../IRTM/recipe data/noise_terms.csv', num_batches=1,
 #                           categorized_foods_path='../../IRTM/recipe data/categorized_foods.npy')
 # data['categories'] = categorize_recipes(data['pp_ingredients'])
-
-# categorized_foods = np.load('../../IRTM/recipe data/categorized_foods.npy', allow_pickle='TRUE').item()
-
-# print(categorized_foods)
-#
-# with open('../../IRTM/recipe data/categorized_foods.csv', 'w') as csv_file:
-#     writer = csv.writer(csv_file)
-#     for key, value in categorized_foods.items():
-#         writer.writerow([key, value])
-#
-# print('------')
-# print('------')
-# print('------')
-# print('------')
-# print('------')
-# print('------')
-# print('------')
-# print('------')
-# print('------')
-# print('------')
-# print('------')
-# print('------')
-# print('------')
-# print('------')
-# print('------')
-#
-# with open('../../IRTM/recipe data/categorized_foods.csv') as csv_file:
-#     reader = csv.reader(csv_file)
-#     categorized_foods2 = dict(reader)
-#
-# print(categorized_foods2)
