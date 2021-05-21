@@ -105,19 +105,16 @@ def remove_noise_terms_single_ingredient(ingredient: str, noise_terms: list, use
 
 
 def remove_noise_terms_multiple_ingredients(ingredients: list, noise_terms: list):
-    # for explanation, see function 'remove_measure_units_single_ingredient'
+    # for explanation, see function 'remove_noise_terms_single_ingredient'
+    # applies function remove_noise_terms_single_ingredient to multiple ingredients
     return [remove_noise_terms_single_ingredient(ingredient=ingredient, noise_terms=noise_terms) for ingredient in
             ingredients]
 
 
 def remove_noise_terms(noise_terms: list, data: pd.core.series.Series):
     # for explanation, see function 'remove_measure_units_single_ingredient'
+    # applies function remove_noise_terms_multiple_ingredients to an entire series of recipes
     return [remove_noise_terms_multiple_ingredients(ingredients=recipe, noise_terms=noise_terms) for recipe in data]
-
-
-def jaccard_coefficient(tokens1: set, tokens2: set) -> float:
-    # proportion of identical tokens
-    return float(len(tokens1.intersection(tokens2)) / len(tokens1.union(tokens2)))
 
 
 def similarity(food_recipe: str, food_fdc: str, noise_terms: list) -> float:
@@ -178,9 +175,10 @@ def request_database(food: str) -> list:
     # send a "dummy" query to see which dataType has entries for that food
     response = requests.get("https://api.nal.usda.gov/fdc/v1/foods/search", params=query)
     print(f'Remaining requests: {response.headers["X-RateLimit-Remaining"]}')
-    while int(response.headers["X-RateLimit-Remaining"]) < 10:
-        print('Close to reaching rate limit, sleepigng for 60 seconds')
+    while int(response.headers["X-RateLimit-Remaining"]) < 30:
+        print('Close to reaching rate limit, sleeping for 60 seconds')
         time.sleep(60)
+        response = requests.get("https://api.nal.usda.gov/fdc/v1/foods/search", params=query)
     try:
         num_hits_by_data_type: dict = response.json().get('aggregations').get('dataType')
     except AttributeError:
@@ -219,7 +217,7 @@ def predict_food_category_of_request(food_recipe: str, fdc_foods: list, noise_te
     return max(counters, key=counters.get)
 
 
-def categorize_single_ingredients(food: str, categorized_foods: dict, noise_terms: list) -> str:
+def categorize_single_ingredient(food: str, categorized_foods: dict, noise_terms: list) -> str:
     # searches in list of already categorized foods and returns category if found, otherwise send request to FDC
     # database and predicts category given the search results from the database
     if food == '':
@@ -238,6 +236,7 @@ def categorize_single_ingredients(food: str, categorized_foods: dict, noise_term
 
 
 def categorize_multiple_ingredients(foods: list, noise_terms: list, categorized_foods: dict = None) -> list:
+    # applies function categorize_single_ingredient to a list of ingredients
     if categorized_foods is None:
         categorized_foods: dict = {}
 
@@ -250,7 +249,7 @@ def categorize_multiple_ingredients(foods: list, noise_terms: list, categorized_
         except StopIteration:
             break
 
-        category = categorize_single_ingredients(food, categorized_foods, noise_terms=noise_terms)
+        category = categorize_single_ingredient(food, categorized_foods, noise_terms=noise_terms)
         categories.append(category)
 
     return categories
@@ -258,6 +257,7 @@ def categorize_multiple_ingredients(foods: list, noise_terms: list, categorized_
 
 def categorize_recipes(preprocessed_ingredients: pd.core.series.Series, noise_terms: list,
                        categorized_foods: dict = None) -> pd.core.series.Series:
+    # applies function categorize_multiple_ingredients to an entire series of recipes
     if categorized_foods is None:
         categorized_foods: dict = {}
     recipe_categories: list = []
@@ -279,6 +279,7 @@ def append_csv(data_frame: pd.core.frame.DataFrame, file_path: str, sep=","):
 def batch_categorize_and_save(temp_category_save_path: str, batch_size: int, data_path: str,
                               path_noise_term_file: str, categorized_foods_path: str = '', num_batches: int = 1,
                               skip_batches: int = 0):
+    # function to categorize ingredients in batches, due to API constraints on maximum number of requests per hour
     if os.path.isfile(categorized_foods_path):
         categorized_foods = np.load(categorized_foods_path, allow_pickle='TRUE').item()
     else:
@@ -296,11 +297,41 @@ def batch_categorize_and_save(temp_category_save_path: str, batch_size: int, dat
         np.save(categorized_foods_path, categorized_foods)
         print(f'Batch {batch_num + 1}/{num_batches} processed and saved.')
         append_csv(data['categories'], temp_category_save_path)
-        # if os.path.isfile(temp_category_save_path):
-        #     data['categories'].to_csv(temp_category_save_path, mode='a', header=False, index=False)
-        # else:
-        #     data['categories'].to_csv(temp_category_save_path, mode='w', header=['categories'])
-        # to-do: save categories of foods in the original data file as a new column
+
+
+def add_classes(pp_ingredients: list, categorized_foods: dict):
+    # for a recipe (= list of ingredients), return a list of categories for those ingredients
+    return [categorized_foods[ingredient] if ingredient in categorized_foods else 'Missing' for ingredient in
+            pp_ingredients]
+
+
+def is_vegetarian(categories: list):
+    # identifies if a recipe (=list of ingredients) is vegetarian
+    non_vegetarian = ['Beef Products', 'Fish and Seafood', 'Lamb, Veal, and Game Products', 'Poultry Products',
+                      'Pork Products', 'Sausages and Luncheon Meats']
+    for category in categories:
+        if category in non_vegetarian:
+            return 0
+    return 1
+
+
+def is_vegan(categories: list):
+    # identifies if a recipe (=list of ingredients) is vegan
+    non_vegan = ['Beef Products', 'Fish and Seafood', 'Lamb, Veal, and Game Products', 'Poultry Products',
+                 'Pork Products', 'Sausages and Luncheon Meats', 'Dairy and Egg Products', 'Non vegan sweets',
+                 'Vegetarian substitutes', 'Wine', 'Non-vegan Liquor']
+    for category in categories:
+        if category in non_vegan:
+            return 0
+    return 1
+
+
+def tagged_vegetarian(tags: list):
+    # identifies if a recipe was tagged as vegetarian by the user
+    for tag in tags:
+        if tag == 'vegetarian':
+            return 1
+    return 0
 
 # only load useful columns with df = pd.read_csv("filepath", usecols=list_useful_column_names)
 # specify data types to take less memory (e.g. for year-numbers use int.16 instead of int.64)
