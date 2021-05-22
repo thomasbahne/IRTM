@@ -350,6 +350,23 @@ def read_dict_from_csv(csv_path: str = '../../IRTM/recipe data/categorized_foods
         reader = csv.reader(csv_file)
         return dict(reader)
 
+
+def false_vegetarian_tag_by_user(data: pd.core.frame.DataFrame, categorized_foods: dict) -> pd.core.frame.DataFrame:
+    # returns a DataFrame of ingredients and categories, which were tagged as vegetarian by the user, but not show
+    # up as vegetarian according to my analysis
+    work_data = data
+    work_data['categories'] = data['pp_ingredients'].apply(add_classes, categorized_foods=categorized_foods)
+    data['vegetarian_tagged'] = data['tags'].apply(tagged_vegetarian)
+    data['is_vegetarian'] = data['categories'].apply(is_vegetarian)
+    tagged = data[data['vegetarian_tagged'] > 0]
+    tagged = tagged[tagged['is_vegetarian'] < 1]
+    print('Number of recipes falsely tagged:', tagged.shape[0])
+    return tagged[['ingredients', 'categories']]
+
+
+def ingredients_to_string(ingredients: list):
+    return ', '.join(ingredients)
+
 # only load useful columns with df = pd.read_csv("filepath", usecols=list_useful_column_names)
 # specify data types to take less memory (e.g. for year-numbers use int.16 instead of int.64)
 # command: df = pd.read_csv("train.csv", dtype={"column_name": "more_efficient_datatype"})
