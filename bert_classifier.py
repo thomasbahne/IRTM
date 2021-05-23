@@ -11,10 +11,14 @@ from sklearn.utils import resample
 from datetime import date
 
 
-def prepare_data(csv_path: str, vegan: bool = False):
+def prepare_data(csv_path: str, num_observations: int, vegan: bool = False, reproducible: int = True):
     # prepares data for use in BERT
     use_col = 'is_vegan' if vegan else 'is_vegetarian'
-    data = pd.read_csv(csv_path, header=0, usecols=['ingredients', use_col], nrows=1000)
+    data = pd.read_csv(csv_path, header=0, usecols=['ingredients', use_col])
+    if reproducible:
+        data = data.sample(n=num_observations, random_state=2205)
+    else:
+        data = data.sample(n=num_observations)
     data['ingredients'] = data['ingredients'].apply(literal_eval)
     data['ingredients'] = data['ingredients'].apply(ingredients_to_string)
     pp_data = data[['ingredients', use_col]]
@@ -34,9 +38,9 @@ def balance_train_data(train_data):
     return pd.concat([train_data, additional_samples])
 
 
-def split_data(prepared_data, test_size=0.1, train_size=0.5, random_state=False):
+def split_data(prepared_data, test_size=0.1, train_size=0.5, reproducible=True):
     # splits data into train set, test set, and evaluation set and balances the train
-    if random_state:
+    if reproducible:
         train_test = train_test_split(prepared_data, test_size=test_size, train_size=train_size, random_state=2205)
         eval_train = train_test_split(train_test[0], test_size=0.2, random_state=2205)
     else:

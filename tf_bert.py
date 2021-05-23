@@ -193,7 +193,8 @@ metrics = tf.metrics.BinaryAccuracy()
 ########
 
 data_folder_path = '../../IRTM/recipe data/'
-prep_data = prepare_data(data_folder_path + 'fully_preprocessed_data/preprocessed_recipes.csv')
+data_sample_size = 1000
+prep_data = prepare_data(data_folder_path + 'fully_preprocessed_data/preprocessed_recipes.csv', data_sample_size)
 train_data, val_data, test_data = split_data(prep_data)
 
 AUTOTUNE = tf.data.AUTOTUNE
