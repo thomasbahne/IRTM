@@ -13,7 +13,7 @@ from sklearn.utils import resample
 def prepare_data(csv_path: str, vegan: bool = False):
     # prepares data for use in BERT
     use_col = 'is_vegan' if vegan else 'is_vegetarian'
-    data = pd.read_csv(csv_path, header=0, usecols=['ingredients', use_col], nrows=100)
+    data = pd.read_csv(csv_path, header=0, usecols=['ingredients', use_col])
     data['ingredients'] = data['ingredients'].apply(literal_eval)
     data['ingredients'] = data['ingredients'].apply(ingredients_to_string)
     pp_data = data[['ingredients', use_col]]
