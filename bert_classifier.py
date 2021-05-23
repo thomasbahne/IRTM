@@ -33,22 +33,46 @@ def balance_train_data(train_data):
     return pd.concat([train_data, additional_samples])
 
 
-def split_data(prepared_data, test_size=0.2):
-    # splits data into train set and test set and balances the train set
-    stratified_split = train_test_split(prepared_data, test_size=test_size, random_state=2205)
-    stratified_split[0] = balance_train_data(stratified_split[0])
-    return stratified_split
+def split_data(prepared_data, test_size=0.2, random_state=True):
+    # splits data into train set, test set, and evaluation set and balances the train
+    if random_state:
+        stratified_split = train_test_split(prepared_data, test_size=test_size, random_state=2205)
+        eval_test_split = train_test_split(stratified_split[1], test_size=0.5, random_state=2205)
+    else:
+        stratified_split = train_test_split(prepared_data, test_size=test_size)
+        eval_test_split = train_test_split(stratified_split[1], test_size=0.5)
+    test_data = eval_test_split[0]
+    eval_data = eval_test_split[1]
+    train_data = balance_train_data(stratified_split[0])
+    return train_data, test_data, eval_data
 
-# cuda_available = torch.cuda.is_available()
-# model_args = ClassificationArgs()
-# model_args.do_lower_case = True  # necessary when using uncased models
-# model_args.use_early_stopping = True
-# model_args.early_stopping_delta = 0.01
-# model_args.early_stopping_metric = "mcc"
-# model_args.early_stopping_metric_minimize = False
-# model_args.early_stopping_patience = 5
-# model_args.evaluate_during_training_steps = 1000
-#
-# model = ClassificationModel(
-#     model_type="bert", model_name="bert-base-uncased", args=model_args, use_cuda=cuda_available
-# )
+
+def get_model_trained_model(training_data, evaluation_data):
+    model_name = 'bert-base-uncased'
+    output_dir = '../../IRTM/networks/'
+    cuda_available = torch.cuda.is_available()
+    model_args = ClassificationArgs()
+    model_args.best_model_dir = '../../IRTM/networks/best_model'
+    model_args.do_lower_case = True  # necessary when using uncased models
+    # model_args.use_early_stopping = True
+    # model_args.early_stopping_delta = 0.01
+    # model_args.early_stopping_metric = "mcc"
+    # model_args.early_stopping_metric_minimize = False
+    model_args.logging_steps = 1000
+    model_args.early_stopping_patience = 5
+    model_args.reprocess_input_data = True
+    model_args.train_batch_size = 128
+    model_args.num_train_epochs = 3
+    model_args.save_model_every_epoch = False
+    model_args.train_batch_size = 128
+    model_args.save_eval_checkpoints = False
+    model_args.evaluate_during_training = True
+    model_args.eval_batch_size = 128
+    model_args.overwrite_output_dir = True
+    model_args.wandb_project = 'IRTM bert-base-uncased'
+    model_args.wandb_kwargs = {'name': model_name}
+    model = ClassificationModel(
+        model_type="bert", model_name=model_name, args=model_args, use_cuda=cuda_available
+    )
+    model.train_model(train_df=training_data, eval_df=evaluation_data, output_dir=output_dir)
+    return model
