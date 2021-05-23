@@ -71,6 +71,7 @@ def get_model_trained_model(training_data, evaluation_data):
     model_args.overwrite_output_dir = True
     model_args.wandb_project = 'IRTM bert-base-uncased'
     model_args.wandb_kwargs = {'name': model_name}
+    wandb.login(key='b8bb043ad17107ca5bd92da9114c41e106f8069a')
     model = ClassificationModel(
         model_type="bert", model_name=model_name, args=model_args, use_cuda=cuda_available
     )
