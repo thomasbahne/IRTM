@@ -15,7 +15,7 @@ from bert_classifier import prepare_data, split_data
 
 tf.get_logger().setLevel('ERROR')
 
-bert_model_name = 'albert_en_base'
+bert_model_name = 'small_bert/bert_en_uncased_L-2_H-128_A-2'
 
 map_name_to_handle = {
     'bert_en_uncased_L-12_H-768_A-12':
@@ -178,7 +178,7 @@ def build_classifier_model():
     encoder = hub.KerasLayer(tfhub_handle_encoder, trainable=True, name='BERT_encoder')
     outputs = encoder(encoder_inputs)
     net = outputs['pooled_output']
-    # net = tf.keras.layers.Dropout(0.1)(net)     # uncomment, if model does not work without dropout
+    net = tf.keras.layers.Dropout(0.1)(net)     # uncomment, if model does not work without dropout
     net = tf.keras.layers.Dense(1, activation=None, name='classifier')(net)
     return tf.keras.Model(text_input, net)
 
@@ -193,7 +193,7 @@ metrics = tf.metrics.BinaryAccuracy()
 ########
 
 data_folder_path = '../../IRTM/recipe data/'
-data_sample_size = 1000
+data_sample_size = 500
 prep_data = prepare_data(data_folder_path + 'fully_preprocessed_data/preprocessed_recipes.csv', data_sample_size)
 train_data, val_data, test_data = split_data(prep_data)
 
@@ -217,7 +217,7 @@ test_ds = df_to_dataset(test_data)
 
 ########
 
-epochs = 10
+epochs = 50
 steps_per_epoch = tf.data.experimental.cardinality(train_ds).numpy()
 num_train_steps = steps_per_epoch * epochs
 num_warmup_steps = int(0.1 * num_train_steps)
@@ -270,6 +270,6 @@ plt.show()
 dataset_name = 'IRTM_preprocessed'
 saved_model_path = './{}_bert'.format(dataset_name.replace('/', '_'))
 
-classifier_model.save(saved_model_path, include_optimizer=False)
+# classifier_model.save(saved_model_path, include_optimizer=False)
 
 # reloaded_model = tf.saved_model.load(saved_model_path)
