@@ -1,9 +1,5 @@
-import torch
 import pandas as pd
 import numpy as np
-import wandb  # weights-and-biases framework: for experiment tracking and visualizing training in a web browser
-import simpletransformers
-from simpletransformers.classification import ClassificationModel, ClassificationArgs
 from functions import ingredients_to_string
 from ast import literal_eval
 from sklearn.model_selection import train_test_split
@@ -50,37 +46,3 @@ def split_data(prepared_data, test_size=0.1, train_size=0.5, reproducible=True):
     eval_data = eval_train[1]
     test_data = train_test[1]
     return train_data, eval_data, test_data
-
-
-def get_trained_model(training_data, evaluation_data):
-    model_name = 'bert-base-uncased'
-    output_dir = '../../IRTM/networks/'
-    cuda_available = torch.cuda.is_available()
-    model_args = ClassificationArgs()
-    model_args.best_model_dir = '../../IRTM/networks/best_model'
-    model_args.do_lower_case = True  # necessary when using uncased models
-    model_args.learning_rate = 0.001
-    model_args.use_early_stopping = True
-    model_args.early_stopping_delta = 0.01
-    model_args.early_stopping_metric = "eval_loss"
-    model_args.early_stopping_metric_minimize = False
-    model_args.logging_steps = 50
-    model_args.early_stopping_patience = 10
-    model_args.reprocess_input_data = True
-    model_args.train_batch_size = 64
-    model_args.num_train_epochs = 100
-    model_args.save_model_every_epoch = False
-    model_args.train_batch_size = 64
-    model_args.save_eval_checkpoints = False
-    model_args.evaluate_during_training = True
-    model_args.evaluate_during_training_verbose = True
-    model_args.eval_batch_size = 64
-    model_args.overwrite_output_dir = True
-    model_args.wandb_project = 'IRTM bert-base-uncased'
-    model_args.wandb_kwargs = {'name': model_name + ' ' + date.today().strftime("%d/%m/%Y")}
-    wandb.login(key='b8bb043ad17107ca5bd92da9114c41e106f8069a')
-    model = ClassificationModel(
-        model_type="bert", model_name=model_name, args=model_args, use_cuda=cuda_available
-    )
-    model.train_model(train_df=training_data, eval_df=evaluation_data, output_dir=output_dir)
-    return model

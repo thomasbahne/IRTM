@@ -1,3 +1,6 @@
+### code was taken from the tutorial on https://www.tensorflow.org/tutorials/text/classify_text_with_bert and modified
+### to fit my purpose
+
 import os
 import shutil
 
@@ -178,7 +181,7 @@ def build_classifier_model():
     encoder = hub.KerasLayer(tfhub_handle_encoder, trainable=True, name='BERT_encoder')
     outputs = encoder(encoder_inputs)
     net = outputs['pooled_output']
-    net = tf.keras.layers.Dropout(0.1)(net)     # uncomment, if model does not work without dropout
+    # net = tf.keras.layers.Dropout(0.1)(net)     # uncomment, if model does not work without dropout
     net = tf.keras.layers.Dense(1, activation=None, name='classifier')(net)
     return tf.keras.Model(text_input, net)
 
@@ -193,7 +196,7 @@ metrics = tf.metrics.BinaryAccuracy()
 ########
 
 data_folder_path = '../../IRTM/recipe data/'
-data_sample_size = 500
+data_sample_size = 1000
 prep_data = prepare_data(data_folder_path + 'fully_preprocessed_data/preprocessed_recipes.csv', data_sample_size)
 train_data, val_data, test_data = split_data(prep_data)
 
@@ -267,7 +270,7 @@ plt.legend(loc='lower right')
 plt.show()
 
 
-dataset_name = 'IRTM_preprocessed'
+dataset_name = 'IRTM_preprocessed_smallest'
 saved_model_path = './{}_bert'.format(dataset_name.replace('/', '_'))
 
 # classifier_model.save(saved_model_path, include_optimizer=False)

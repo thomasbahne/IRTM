@@ -367,6 +367,52 @@ def false_vegetarian_tag_by_user(data: pd.core.frame.DataFrame, categorized_food
 def ingredients_to_string(ingredients: list):
     return ', '.join(ingredients)
 
+
+def cohens_kappa(judge1: pd.core.series.Series, judge2: pd.core.series.Series) -> float:
+    # calculates the Kappa distance between two judges
+    a1 = judge1.to_numpy()
+    a2 = judge2.to_numpy()
+    if np.size(a1) != np.size(a2):
+        return Exception('Dimensions not matching in Kappa_Distance')
+    size = np.size(a1)
+    a1_yes = np.sum(a1)
+    a1_no = size-a1_yes
+    a2_yes = np.sum(a2)
+    a2_no = size-a2_yes
+    agreement = np.equal(a1, a2)/size
+    coincidence_yes = (a1_yes/size)*(a2_yes/size)
+    coincidence_no = (a1_no/size)*(a2_no/size)
+    coincidence = coincidence_yes + coincidence_no
+    return (agreement-coincidence)/(1-coincidence)
+
+
+def average_pairwise_kappa(data_frame: pd.core.frame.DataFrame) -> float:
+    # calculates average pairwise kappa for multi-judge agreement
+    kappas = []
+    for i in range(pd.size(data_frame.columns())):
+        judge1 = data_frame.columns()[i]
+        for j in range(i+1, pd.size(data_frame.columns())):
+            judge2 = data_frame.columns()[j]
+            kappas.append(cohens_kappa(data_frame[judge1], data_frame[judge2]))
+    return sum(kappas)/len(kappas)
+
+
+def counts_per_year(data_frame: pd.core.frame.DataFrame) -> pd.core.frame.DataFrame:
+    # first recipe was uploaded 06.08.1999, latest recipe on 04.12.2018
+    data = data_frame[['submitted', 'is_vegetarian', 'is_vegan']]
+    data = data_frame.sort_values(by='submitted')
+    first_year = data['submitted'].iloc[0].year
+    last_year = data['submitted'].iloc[-1].year
+    other = []
+    veggie = []
+    vegan = []
+    for count, year in enumerate(range(first_year, last_year+1)):
+        this_year = data[data['submitted'].dt.year == year]
+        vegan.append(this_year['is_vegan'].sum())
+        veggie.append(this_year['is_vegetarian'].sum() - vegan[count])
+        other.append(this_year.shape[0] - veggie[count])
+    return pd.DataFrame({'year': range(first_year, last_year+1), 'vegetarian': veggie, 'vegan': vegan, 'other': other})
+
 # only load useful columns with df = pd.read_csv("filepath", usecols=list_useful_column_names)
 # specify data types to take less memory (e.g. for year-numbers use int.16 instead of int.64)
 # command: df = pd.read_csv("train.csv", dtype={"column_name": "more_efficient_datatype"})
