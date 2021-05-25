@@ -302,8 +302,8 @@ def add_classes(pp_ingredients: list, categorized_foods: dict) -> list:
 
 def is_vegetarian(categories: list) -> int:
     # identifies if a recipe (=list of ingredients) is vegetarian
-    non_vegetarian = ['Beef Products', 'Fish and Seafood', 'Lamb, Veal, and Game Products', 'Poultry Products',
-                      'Pork Products', 'Sausages and Luncheon Meats']
+    non_vegetarian = ['Beef Products', 'Fish & Seafood', 'Lamb, Veal, and Game Products', 'Poultry Products',
+                      'Pork Products', 'Sausages and Luncheon Meats', 'Wine']
     for category in categories:
         if category in non_vegetarian:
             return 0
@@ -312,7 +312,7 @@ def is_vegetarian(categories: list) -> int:
 
 def is_vegan(categories: list) -> int:
     # identifies if a recipe (=list of ingredients) is vegan
-    non_vegan = ['Beef Products', 'Fish and Seafood', 'Lamb, Veal, and Game Products', 'Poultry Products',
+    non_vegan = ['Beef Products', 'Fish & Seafood', 'Lamb, Veal, and Game Products', 'Poultry Products',
                  'Pork Products', 'Sausages and Luncheon Meats', 'Dairy and Egg Products', 'Non vegan sweets',
                  'Vegetarian substitutes', 'Wine', 'Non-vegan Liquor']
     for category in categories:
@@ -379,7 +379,7 @@ def cohens_kappa(judge1: pd.core.series.Series, judge2: pd.core.series.Series) -
     a1_no = size-a1_yes
     a2_yes = np.sum(a2)
     a2_no = size-a2_yes
-    agreement = np.equal(a1, a2)/size
+    agreement = np.sum(np.equal(a1, a2))/size
     coincidence_yes = (a1_yes/size)*(a2_yes/size)
     coincidence_no = (a1_no/size)*(a2_no/size)
     coincidence = coincidence_yes + coincidence_no
@@ -399,6 +399,8 @@ def average_pairwise_kappa(data_frame: pd.core.frame.DataFrame) -> float:
 
 def counts_per_year(data_frame: pd.core.frame.DataFrame) -> pd.core.frame.DataFrame:
     # first recipe was uploaded 06.08.1999, latest recipe on 04.12.2018
+    # function outputs a table (DataFrame) with counts for recipes identified as vegan, vegetarian but not vegan, and
+    # neither (=other/omnivore) for each year for which data is available
     data = data_frame[['submitted', 'is_vegetarian', 'is_vegan']]
     data = data_frame.sort_values(by='submitted')
     first_year = data['submitted'].iloc[0].year
@@ -411,7 +413,15 @@ def counts_per_year(data_frame: pd.core.frame.DataFrame) -> pd.core.frame.DataFr
         vegan.append(this_year['is_vegan'].sum())
         veggie.append(this_year['is_vegetarian'].sum() - vegan[count])
         other.append(this_year.shape[0] - veggie[count])
-    return pd.DataFrame({'year': range(first_year, last_year+1), 'vegetarian': veggie, 'vegan': vegan, 'other': other})
+    return pd.DataFrame({'year': range(first_year, last_year+1), 'vegan': vegan, 'vegetarian': veggie, 'other': other})
+
+
+def proportions_per_year(data_frame: pd.core.frame.DataFrame) -> pd.core.frame.DataFrame:
+    # function outputs a table (DataFrame) with percentages of recipes identified as vegan, vegetarian but not vegan,
+    #  and neither (=omnnivore) for each year for which data is available
+    data = data_frame
+    data['total'] = data['vegan'] + data['vegetarian'] + data['other']
+    pass
 
 # only load useful columns with df = pd.read_csv("filepath", usecols=list_useful_column_names)
 # specify data types to take less memory (e.g. for year-numbers use int.16 instead of int.64)
