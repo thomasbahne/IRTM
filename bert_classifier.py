@@ -7,9 +7,10 @@ from sklearn.utils import resample
 from datetime import date
 
 
-def prepare_data(csv_path: str, num_observations: int, vegan: bool = False, reproducible: int = True):
+def prepare_data(csv_path: str, num_observations: int, vegan: bool = False, reproducible: bool = True):
     # prepares data for use in BERT
     use_col = 'is_vegan' if vegan else 'is_vegetarian'
+    print(use_col)
     data = pd.read_csv(csv_path, header=0, usecols=['ingredients', use_col])
     if reproducible:
         data = data.sample(n=num_observations, random_state=2205)
