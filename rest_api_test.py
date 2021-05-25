@@ -2,8 +2,8 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from ast import literal_eval
-from functions import remove_noise_terms, plot_value_counts, batch_categorize_and_save, add_classes, is_vegetarian,\
-    is_vegan, counts_per_year, cohens_kappa
+from functions import remove_noise_terms, plot_value_counts, batch_categorize_and_save, add_classes, is_vegetarian, \
+    is_vegan, counts_per_year, cohens_kappa, proportions_per_year
 from bert_classifier import prepare_data, split_data
 import logging
 
@@ -41,37 +41,56 @@ data_folder_path = '../../IRTM/recipe data/'
 
 ### calculate kappa distances ###
 
-judge_data = [pd.read_csv(data_folder_path + 'kappa_samples_annotated.csv', header=0),
-              pd.read_csv(data_folder_path + 'kappa_sample_charlotte.csv', header=0, sep=';'),
-              pd.read_csv(data_folder_path + 'kappa_sample_margit.csv', header=0, sep=';'),
-              pd.read_csv(data_folder_path + 'kappa_sample_wolfgang.csv', header=0, sep=';')]
+# judge_data = [pd.read_csv(data_folder_path + 'kappa_samples_annotated.csv', header=0),
+#               pd.read_csv(data_folder_path + 'kappa_sample_charlotte.csv', header=0, sep=';'),
+#               pd.read_csv(data_folder_path + 'kappa_sample_margit.csv', header=0, sep=';'),
+#               pd.read_csv(data_folder_path + 'kappa_sample_wolfgang.csv', header=0, sep=';')]
+#
+# kappa_dist_vegetarian = np.empty(shape=(4, 4))
+# for i in range(4):
+#     for j in range(4):
+#         kappa_dist_vegetarian[i, j] = cohens_kappa(judge_data[i]['vegetarian'], judge_data[j]['vegetarian'])
+# print('Vegetarian:')
+# print(kappa_dist_vegetarian)
+# print()
+#
+# kappa_dist_vegan = np.empty(shape=(4, 4))
+# for i in range(4):
+#     for j in range(4):
+#         kappa_dist_vegan[i, j] = cohens_kappa(judge_data[i]['vegan'], judge_data[j]['vegan'])
+# print('Vegan:')
+# print(kappa_dist_vegan)
 
-kappa_dist_vegetarian = np.empty(shape=(4, 4))
-for i in range(4):
-    for j in range(4):
-        kappa_dist_vegetarian[i, j] = cohens_kappa(judge_data[i]['vegetarian'], judge_data[j]['vegetarian'])
-print('Vegetarian:')
-print(kappa_dist_vegetarian)
-print()
+### create counts and proportions of categories per year ###
 
-kappa_dist_vegan = np.empty(shape=(4, 4))
-for i in range(4):
-    for j in range(4):
-        kappa_dist_vegan[i, j] = cohens_kappa(judge_data[i]['vegan'], judge_data[j]['vegan'])
-print('Vegan:')
-print(kappa_dist_vegan)
-
-### create counts per year ###
-
-data = pd.read_csv(data_folder_path + 'fully_preprocessed_data/preprocessed_recipes.csv', header=0,
-                   parse_dates=['submitted'], infer_datetime_format=True)
-counts = counts_per_year(data)
+# data = pd.read_csv(data_folder_path + 'fully_preprocessed_data/preprocessed_recipes.csv', header=0,
+#                    parse_dates=['submitted'], infer_datetime_format=True)
+# counts = counts_per_year(data)
+# proportions = proportions_per_year(counts)
 # counts.to_csv('../../IRTM/recipe data/counts_by_year.csv')
-
-y = np.vstack([counts['vegan'], counts['vegetarian'], counts['other']])
-labels = ["Vegan ", "Vegetarian, but not vegan", "Neither vegan nor vegetarian"]
-fig, ax = plt.subplots()
-ax.stackplot(counts['year'].tolist(), y, labels=labels, baseline='wiggle')
-ax.legend(loc='upper left')
-plt.show()
-# plt.stackplot(counts['year'], counts.drop(axis=1, labels=['year']), baseline='zero')
+# proportions.to_csv('../../IRTM/recipe data/proportions_by_year.csv')
+#
+# count_plot_data = {'vegan': counts['vegan'],
+#                    'Vegetarian, but not vegan': counts['vegetarian'],
+#                    'Neither vegan nor vegetarian': counts['other']}
+# years = [2000, 2002, 2004, 2006, 2008, 2010, 2012, 2014, 2016, 2018]
+# fig_count, ax_count = plt.subplots()
+# ax_count.stackplot(counts['year'].tolist(), count_plot_data.values(), labels=count_plot_data.keys())
+# plt.xticks(ticks=years)
+# ax_count.legend(loc='upper left')
+# ax_count.set_title('Counts of recipe uploads by category')
+# ax_count.set_xlabel('Year')
+# ax_count.set_ylabel('Number of uploads')
+# plt.show()
+#
+# prop_plot_data = {'vegan': proportions['vegan'],
+#                   'Vegetarian, but not vegan': proportions['vegetarian'],
+#                   'Neither vegan nor vegetarian': proportions['other']}
+# fig_prop, ax_prop = plt.subplots()
+# ax_prop.stackplot(proportions['year'].tolist(), prop_plot_data.values(), labels=prop_plot_data.keys())
+# plt.xticks(ticks=years)
+# ax_prop.legend(loc='upper left')
+# ax_prop.set_title('Proportion of recipe uploads by category')
+# ax_prop.set_xlabel('Year')
+# ax_prop.set_ylabel('Proportion of uploads')
+# plt.show()

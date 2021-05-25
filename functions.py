@@ -402,7 +402,7 @@ def counts_per_year(data_frame: pd.core.frame.DataFrame) -> pd.core.frame.DataFr
     # function outputs a table (DataFrame) with counts for recipes identified as vegan, vegetarian but not vegan, and
     # neither (=other/omnivore) for each year for which data is available
     data = data_frame[['submitted', 'is_vegetarian', 'is_vegan']]
-    data = data_frame.sort_values(by='submitted')
+    data = data.sort_values(by='submitted')
     first_year = data['submitted'].iloc[0].year
     last_year = data['submitted'].iloc[-1].year
     other = []
@@ -419,9 +419,12 @@ def counts_per_year(data_frame: pd.core.frame.DataFrame) -> pd.core.frame.DataFr
 def proportions_per_year(data_frame: pd.core.frame.DataFrame) -> pd.core.frame.DataFrame:
     # function outputs a table (DataFrame) with percentages of recipes identified as vegan, vegetarian but not vegan,
     #  and neither (=omnnivore) for each year for which data is available
-    data = data_frame
+    data = data_frame.copy(deep=True)
     data['total'] = data['vegan'] + data['vegetarian'] + data['other']
-    pass
+    data['vegan'] = data['vegan'] / data['total']
+    data['vegetarian'] = data['vegetarian'] / data['total']
+    data['other'] = data['other'] / data['total']
+    return data.drop(axis=1, labels=['total'])
 
 # only load useful columns with df = pd.read_csv("filepath", usecols=list_useful_column_names)
 # specify data types to take less memory (e.g. for year-numbers use int.16 instead of int.64)
