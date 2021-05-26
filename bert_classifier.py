@@ -14,7 +14,7 @@ from official.nlp import optimization  # to create AdamW optimizer
 from keras.callbacks import EarlyStopping, ReduceLROnPlateau, ModelCheckpoint
 
 
-def prepare_data(csv_path: str, num_observations: int, vegan: bool = False, reproducible: bool = True):
+def prepare_data(csv_path: str, num_observations: int, vegan: bool = False, reproducible: int = True):
     # prepares data for use in BERT
     use_col = 'is_vegan' if vegan else 'is_vegetarian'
     data = pd.read_csv(csv_path, header=0, usecols=['ingredients', use_col])
