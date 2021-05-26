@@ -1,3 +1,5 @@
+### This file contains only functions that I have written for the IRTM project. ###
+
 import matplotlib.pyplot
 import numpy as np
 import pandas as pd
@@ -8,10 +10,6 @@ from ast import literal_eval
 import os.path
 import Levenshtein
 import csv
-
-# cleaning up the data:
-# for the purpose of my analysis (finding out if a recipe is vegan/vegetarian/omnivore, I can disregard many
-# descriptions of ingredients. Examples would be "fresh" or "mix", like in "fresh parsley", or "pudding mix".
 
 data_folder_path = 'Data/'
 filename_recipes = 'RAW_recipes.csv'
@@ -426,12 +424,22 @@ def proportions_per_year(data_frame: pd.core.frame.DataFrame) -> pd.core.frame.D
     data['other'] = data['other'] / data['total']
     return data.drop(axis=1, labels=['total'])
 
-# only load useful columns with df = pd.read_csv("filepath", usecols=list_useful_column_names)
-# specify data types to take less memory (e.g. for year-numbers use int.16 instead of int.64)
-# command: df = pd.read_csv("train.csv", dtype={"column_name": "more_efficient_datatype"})
-# "categorical" is a datatype that uses minimal space if the entries in a column only take on
-# a few different values dtype={'column_name': 'category'}
-# replace missing values when loading data with 1) defining a convert function, e.g.
-# def convert(var): if var==np.nan: return "sth you want to have instead, or 0", return val
-# pd.read_csv('filepath', converters={'column_name': convert_function})
-# for test purposes, only load in a small part of the data with nrows=1000
+
+def precision(reference: pd.core.series.Series, classifier: pd.core.series.Series):
+    data_frame = pd.DataFrame(data={reference.name: reference, classifier.name: classifier})
+    selected_by_classifier = data_frame[data_frame[classifier.name] == 1]
+    true_positives = selected_by_classifier[selected_by_classifier[reference.name] == 1]
+    return true_positives.shape[0]/selected_by_classifier.shape[0]
+
+
+def recall(reference: pd.core.series.Series, classifier: pd.core.series.Series):
+    data_frame = pd.DataFrame(data={reference.name: reference, classifier.name: classifier})
+    relevant_items = data_frame[data_frame[reference.name] == 1]
+    true_positives = relevant_items[relevant_items[classifier.name] == 1]
+    return true_positives.shape[0]/relevant_items.shape[0]
+
+
+def f1_score(reference: pd.core.series.Series, classifier: pd.core.series.Series):
+    prec = precision(reference, classifier)
+    rec = recall(reference, classifier)
+    return 2*prec*rec/(prec+rec)

@@ -1,26 +1,38 @@
+##### Please be aware that this code cannot simply be run as is. I went through many iterations and changes during #####
+##### the implementation and I did not write a final script that one could run without making any changes. #####
+
+
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from ast import literal_eval
 from functions import remove_noise_terms, plot_value_counts, batch_categorize_and_save, add_classes, is_vegetarian, \
-    is_vegan, counts_per_year, cohens_kappa, proportions_per_year
-from bert_classifier import prepare_data, split_data
+    is_vegan, counts_per_year, cohens_kappa, proportions_per_year, precision, recall, f1_score
+from bert_classifier import prepare_data, split_data, predict_series, load_trained_model
 import logging
+import tensorflow as tf
+import tensorflow_hub as hub
+import tensorflow_text as text
+from official.nlp import optimization  # to create AdamW optimizer
+from datetime import datetime
 
 data_folder_path = '../../IRTM/recipe data/'
 
-### preprocessing data ###
+##### preprocessing data #####
+
+# noise_terms = pd.read_csv(data_folder_path + 'noise_terms.csv', squeeze=True).to_numpy().tolist()
+
+### Generating preliminary categories for every ingredient by contacting the FoodData Central Database API ###
 
 # batch_categorize_and_save(temp_category_save_path=data_folder_path+'temp_category_save.csv', batch_size=100,
 #                           data_path=data_folder_pat+'RAW_recipes_copy.csv',
 #                           path_noise_term_file=data_folder_path + 'noise_terms.csv', num_batches=1,
 #                           categorized_foods_path=data_folder_path + 'categorized_foods.npy')
-#
+
 # data = pd.read_csv(data_folder_path + 'fully_preprocessed_data/preprocessed_recipes.csv', header=0, index_col=0,
 #                    parse_dates=['submitted'], infer_datetime_format=True)
 # categorization_dict = pd.read_csv(data_folder_path + 'categorized_foods_corrected.csv', header=None, index_col=0,
 #                                    squeeze=True, sep=';').to_dict()
-# noise_terms = pd.read_csv(data_folder_path + 'noise_terms.csv', squeeze=True).to_numpy().tolist()
 # data['ingredients'] = data['ingredients'].apply(literal_eval)
 # data['pp_ingredients'] = remove_noise_terms(noise_terms=noise_terms, data=data['ingredients'])
 # data['categories'] = data['pp_ingredients'].apply(add_classes, categorized_foods=categorization_dict)
@@ -94,3 +106,34 @@ data_folder_path = '../../IRTM/recipe data/'
 # ax_prop.set_xlabel('Year')
 # ax_prop.set_ylabel('Proportion of uploads')
 # plt.show()
+
+### load saved BERT model to classify all recipes ###
+
+# path_vegetarian_bert = '../../IRTM/networks/small_bert_vegetarian'
+# path_vegan_bert = '../../IRTM/networks/small_bert_vegan'
+# data = pd.read_csv(data_folder_path + 'fully_preprocessed_data/preprocessed_recipes.csv', header=0, index_col=0)
+#
+# vegan_model = load_trained_model(path_vegan_bert, data_folder_path + 'fully_preprocessed_data/preprocessed_recipes.csv')
+# vegetarian_model = load_trained_model(path_vegetarian_bert, data_folder_path + 'fully_preprocessed_data/preprocessed_recipes.csv')
+# data['vegan_bert'] = predict_series(vegan_model, data['ingredients'], vegan=True)
+# data['vegetarian_bert'] = predict_series(vegetarian_model, data['ingredients'])
+# correct_vegan = data[data['is_vegan'] == data['vegan_bert']]
+# correct_vegetarian = data[data['is_vegetarian'] == data['vegetarian_bert']]
+# print('Accuracy vegan:', correct_vegan.shape[0]/data.shape[0])
+# print('Accuracy vegetarian:', correct_vegetarian.shape[0]/data.shape[0])
+# data.to_csv(data_folder_path + 'fully_preprocessed_data/results_bert.csv')
+
+### calculate performance metrics of classification ###
+
+# data_classified = pd.read_csv(data_folder_path + 'fully_preprocessed_data/results_bert.csv', header=0, index_col=0)
+# precision_vegan = precision(reference=data_classified['is_vegan'], classifier=data_classified['vegan_bert'])
+# precision_vegetarian = precision(reference=data_classified['is_vegetarian'],
+#                                  classifier=data_classified['vegetarian_bert'])
+# recall_vegan = recall(reference=data_classified['is_vegan'], classifier=data_classified['vegan_bert'])
+# recall_vegetarian = recall(reference=data_classified['is_vegetarian'], classifier=data_classified['vegetarian_bert'])
+# f1_vegan = f1_score(reference=data_classified['is_vegan'], classifier=data_classified['vegan_bert'])
+# f1_vegetarian = f1_score(reference=data_classified['is_vegetarian'], classifier=data_classified['vegetarian_bert'])
+# print(f'Performance of the vegan classifier: \n Precision: {precision_vegan} \n Recall: {recall_vegan} \n F1_score: '
+#       f'{f1_vegan}')
+# print(f'Performance of the vegetarian classifier: \n Precision: {precision_vegetarian} \n Recall: {recall_vegetarian} '
+#       f'\n F1_score: {f1_vegetarian}')

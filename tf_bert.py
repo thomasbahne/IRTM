@@ -189,89 +189,91 @@ def build_classifier_model():
 classifier_model = build_classifier_model()
 bert_raw_result = classifier_model(tf.constant(text_test))
 print(tf.sigmoid(bert_raw_result))
+print(f'These are the results: {tf.sigmoid(bert_raw_result)[0][0]:.6f}')
+print(classifier_model.predict(text_test))
 
 loss = tf.keras.losses.BinaryCrossentropy(from_logits=True)
 metrics = tf.metrics.BinaryAccuracy()
 
 ########
 
-data_folder_path = '../../IRTM/recipe data/'
-data_sample_size = 1000
-prep_data = prepare_data(data_folder_path + 'fully_preprocessed_data/preprocessed_recipes.csv', data_sample_size)
-train_data, val_data, test_data = split_data(prep_data)
-
-AUTOTUNE = tf.data.AUTOTUNE
-
-
-def df_to_dataset(dataframe, shuffle=True, batch_size=32):
-    dataframe = dataframe.copy()
-    labels = dataframe.pop('labels')
-    ds = tf.data.Dataset.from_tensor_slices((dict(dataframe), labels))
-    if shuffle:
-        ds = ds.shuffle(buffer_size=len(dataframe))
-    ds = ds.batch(batch_size)
-    ds = ds.prefetch(buffer_size=AUTOTUNE)
-    return ds
-
-
-train_ds = df_to_dataset(train_data)
-val_ds = df_to_dataset(val_data)
-test_ds = df_to_dataset(test_data)
-
-########
-
-epochs = 50
-steps_per_epoch = tf.data.experimental.cardinality(train_ds).numpy()
-num_train_steps = steps_per_epoch * epochs
-num_warmup_steps = int(0.1 * num_train_steps)
-
-init_lr = 3e-5
-optimizer = optimization.create_optimizer(init_lr=init_lr, num_train_steps=num_train_steps,
-                                          num_warmup_steps=num_warmup_steps, optimizer_type='adamw')
-
-classifier_model.compile(optimizer=optimizer, loss=loss, metrics=metrics)
-
-print(f'Training model with {tfhub_handle_encoder}')
-history = classifier_model.fit(x=train_ds, validation_data=val_ds, epochs=epochs)
-
-loss, accuracy = classifier_model.evaluate(test_ds)
-print(f'Loss: {loss}')
-print(f'Accuracy: {accuracy}')
-
-history_dict = history.history
-print(history_dict.keys())
-
-acc = history_dict['binary_accuracy']
-val_acc = history_dict['val_binary_accuracy']
-loss = history_dict['loss']
-val_loss = history_dict['val_loss']
-
-epochs = range(1, len(acc) + 1)
-fig = plt.figure(figsize=(10, 6))
-fig.tight_layout()
-
-plt.subplot(2, 1, 1)
-# "bo" is for "blue dot"
-plt.plot(epochs, loss, 'r', label='Training loss')
-# b is for "solid blue line"
-plt.plot(epochs, val_loss, 'b', label='Validation loss')
-plt.title('Training and validation loss')
+# data_folder_path = '../../IRTM/recipe data/'
+# data_sample_size = 1000
+# prep_data = prepare_data(data_folder_path + 'fully_preprocessed_data/preprocessed_recipes.csv', data_sample_size)
+# train_data, val_data, test_data = split_data(prep_data)
+#
+# AUTOTUNE = tf.data.AUTOTUNE
+#
+#
+# def df_to_dataset(dataframe, shuffle=True, batch_size=32):
+#     dataframe = dataframe.copy()
+#     labels = dataframe.pop('labels')
+#     ds = tf.data.Dataset.from_tensor_slices((dict(dataframe), labels))
+#     if shuffle:
+#         ds = ds.shuffle(buffer_size=len(dataframe))
+#     ds = ds.batch(batch_size)
+#     ds = ds.prefetch(buffer_size=AUTOTUNE)
+#     return ds
+#
+#
+# train_ds = df_to_dataset(train_data)
+# val_ds = df_to_dataset(val_data)
+# test_ds = df_to_dataset(test_data)
+#
+# ########
+#
+# epochs = 50
+# steps_per_epoch = tf.data.experimental.cardinality(train_ds).numpy()
+# num_train_steps = steps_per_epoch * epochs
+# num_warmup_steps = int(0.1 * num_train_steps)
+#
+# init_lr = 3e-5
+# optimizer = optimization.create_optimizer(init_lr=init_lr, num_train_steps=num_train_steps,
+#                                           num_warmup_steps=num_warmup_steps, optimizer_type='adamw')
+#
+# classifier_model.compile(optimizer=optimizer, loss=loss, metrics=metrics)
+#
+# print(f'Training model with {tfhub_handle_encoder}')
+# history = classifier_model.fit(x=train_ds, validation_data=val_ds, epochs=epochs)
+#
+# loss, accuracy = classifier_model.evaluate(test_ds)
+# print(f'Loss: {loss}')
+# print(f'Accuracy: {accuracy}')
+#
+# history_dict = history.history
+# print(history_dict.keys())
+#
+# acc = history_dict['binary_accuracy']
+# val_acc = history_dict['val_binary_accuracy']
+# loss = history_dict['loss']
+# val_loss = history_dict['val_loss']
+#
+# epochs = range(1, len(acc) + 1)
+# fig = plt.figure(figsize=(10, 6))
+# fig.tight_layout()
+#
+# plt.subplot(2, 1, 1)
+# # "bo" is for "blue dot"
+# plt.plot(epochs, loss, 'r', label='Training loss')
+# # b is for "solid blue line"
+# plt.plot(epochs, val_loss, 'b', label='Validation loss')
+# plt.title('Training and validation loss')
+# # plt.xlabel('Epochs')
+# plt.ylabel('Loss')
+# plt.legend()
+#
+# plt.subplot(2, 1, 2)
+# plt.plot(epochs, acc, 'r', label='Training acc')
+# plt.plot(epochs, val_acc, 'b', label='Validation acc')
+# plt.title('Training and validation accuracy')
 # plt.xlabel('Epochs')
-plt.ylabel('Loss')
-plt.legend()
-
-plt.subplot(2, 1, 2)
-plt.plot(epochs, acc, 'r', label='Training acc')
-plt.plot(epochs, val_acc, 'b', label='Validation acc')
-plt.title('Training and validation accuracy')
-plt.xlabel('Epochs')
-plt.ylabel('Accuracy')
-plt.legend(loc='lower right')
-plt.show()
-
-
-dataset_name = 'IRTM_preprocessed_smallest'
-saved_model_path = './{}_bert'.format(dataset_name.replace('/', '_'))
+# plt.ylabel('Accuracy')
+# plt.legend(loc='lower right')
+# plt.show()
+#
+#
+# dataset_name = 'IRTM_preprocessed_smallest'
+# saved_model_path = './{}_bert'.format(dataset_name.replace('/', '_'))
 
 # classifier_model.save(saved_model_path, include_optimizer=False)
 
